@@ -1,6 +1,10 @@
-use monkey_interpreter::lexer::{token::TokenType, Lexer};
 use std::env;
-use std::io::{BufRead, Write};
+use std::io::Write;
+use crate::lexer::Lexer;
+use crate::token::TokenType;
+
+mod token;
+mod lexer;
 
 const PROMPT: &str = ">>";
 
