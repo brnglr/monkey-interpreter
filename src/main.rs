@@ -1,10 +1,10 @@
+use crate::lexer::Lexer;
+use crate::token::{Token, TokenType};
 use std::env;
 use std::io::Write;
-use crate::lexer::Lexer;
-use crate::token::TokenType;
 
-mod token;
 mod lexer;
+mod token;
 
 const PROMPT: &str = ">>";
 
@@ -21,10 +21,12 @@ fn main() {
         std::io::stdin().read_line(&mut input_line).unwrap();
 
         let mut lexer = Lexer::new(input_line.as_str());
-        while let token = lexer.next_token() {
-            if token.token_type == TokenType::Eof {
-                break;
-            }
+        let mut token = Token {
+            token_type: TokenType::Illegal,
+            literal: "".to_string(),
+        };
+        while token.token_type != TokenType::Eof {
+            token = lexer.next_token();
             println!("{:#?}", token);
         }
     }
