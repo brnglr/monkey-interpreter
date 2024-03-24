@@ -17,8 +17,14 @@ pub struct LetStatement {
     pub value: Expression,
 }
 #[derive(Debug)]
+pub struct ReturnStatement {
+    pub token: Token,
+    pub return_value: Expression,
+}
+#[derive(Debug)]
 pub enum Statement {
     LetStatement(LetStatement),
+    ReturnStatement(ReturnStatement),
 }
 
 pub struct Program {

@@ -3,7 +3,9 @@ use crate::token::{Token, TokenType};
 use std::env;
 use std::io::Write;
 
+mod ast;
 mod lexer;
+mod parser;
 mod token;
 
 const PROMPT: &str = ">>";

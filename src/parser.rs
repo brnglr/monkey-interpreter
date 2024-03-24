@@ -1,4 +1,4 @@
-use crate::ast::{Expression, Identifier, LetStatement, Program, Statement};
+use crate::ast::{Expression, Identifier, LetStatement, Program, ReturnStatement, Statement};
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 
@@ -62,6 +62,9 @@ impl Parser {
             TokenType::Let => {
                 return Statement::LetStatement(self.parse_let_statement());
             }
+            TokenType::Return => {
+                return Statement::ReturnStatement(self.parse_return_statement());
+            }
             _ => todo!(),
         }
     }
@@ -78,10 +81,10 @@ impl Parser {
 
         self.expect_peek(TokenType::Assign);
 
+        // TODO: DELETE THIS ONCE WE HAVE EXPRESSION PARSING
         while self.current_token.token_type != TokenType::Semicolon {
             self.next_token();
         }
-        // TODO: DELETE THIS ONCE WE HAVE EXPRESSION PARSING
         let dummy_object = Identifier {
             token: self.current_token.clone(),
             value: self.current_token.literal.clone(),
@@ -90,6 +93,26 @@ impl Parser {
             token: first_token,
             name: name,
             value: Expression::Identifier(dummy_object),
+        };
+    }
+
+    fn parse_return_statement(&mut self) -> ReturnStatement {
+        let first_token = self.current_token.clone();
+
+        self.next_token();
+
+        // TODO: DELETE THIS ONCE WE HAVE EXPRESSION PARSING
+        while self.current_token.token_type != TokenType::Semicolon {
+            self.next_token();
+        }
+        let dummy_object = Identifier {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        };
+
+        return ReturnStatement {
+            token: first_token,
+            return_value: Expression::Identifier(dummy_object),
         };
     }
 }
@@ -116,6 +139,10 @@ mod tests {
                 assert_eq!(statement.name.token.literal, name);
                 assert_eq!(statement.name.value, name);
             }
+            _ => panic!(
+                "Statement was not parsed as a let statement: {:?}",
+                statement
+            ),
         }
     }
 
@@ -138,6 +165,35 @@ let foobar = 838383;";
         let expected_identifiers = vec!["x", "y", "foobar"];
         for (i, statement) in program.statements.iter().enumerate() {
             test_statement(statement, expected_identifiers[i].to_string());
+        }
+    }
+
+    #[test]
+    fn test_return_statements() {
+        let input = "return 5;
+return 10;
+return 993322;";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            3,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            match statement {
+                Statement::ReturnStatement(statement) => {
+                    assert_eq!(statement.token.literal, "return");
+                }
+                _ => panic!(
+                    "Statement was not parsed as a return statement: {:?}",
+                    statement
+                ),
+            }
         }
     }
 }
