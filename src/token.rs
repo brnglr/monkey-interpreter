@@ -1,4 +1,6 @@
-#[derive(Debug, PartialEq, Clone)]
+use crate::parser::Precedence;
+
+#[derive(Debug, PartialEq, Clone, Hash, Eq)]
 pub enum TokenType {
     Illegal,
     Eof,
@@ -37,6 +39,20 @@ pub enum TokenType {
     If,
     Else,
     Return,
+}
+
+pub fn get_precedence(token_type: &TokenType) -> Precedence {
+    match token_type {
+        TokenType::Equal => Precedence::Equals,
+        TokenType::NotEqual => Precedence::Equals,
+        TokenType::LessThan => Precedence::LessGreater,
+        TokenType::GreaterThan => Precedence::LessGreater,
+        TokenType::Plus => Precedence::Sum,
+        TokenType::Minus => Precedence::Sum,
+        TokenType::Slash => Precedence::Product,
+        TokenType::Asterisk => Precedence::Product,
+        _ => Precedence::Lowest,
+    }
 }
 
 pub fn is_allowed_in_identifier(character: u8) -> bool {
