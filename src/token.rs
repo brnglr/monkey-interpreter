@@ -43,6 +43,7 @@ pub enum TokenType {
 
 pub fn get_precedence(token_type: &TokenType) -> Precedence {
     match token_type {
+        TokenType::Lparen => Precedence::Call,
         TokenType::Equal => Precedence::Equals,
         TokenType::NotEqual => Precedence::Equals,
         TokenType::LessThan => Precedence::LessGreater,
@@ -65,7 +66,7 @@ pub fn is_allowed_in_int(character: u8) -> bool {
     return character.is_ascii_digit();
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub literal: String,

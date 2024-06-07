@@ -1,5 +1,6 @@
 use crate::ast::{
-    Expression, ExpressionStatement, Identifier, InfixExpression, IntegerLiteral, LetStatement,
+    BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
+    FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
     PrefixExpression, Program, ReturnStatement, Statement,
 };
 use crate::lexer::Lexer;
@@ -45,6 +46,7 @@ impl Parser {
         parser.next_token();
         parser.next_token();
 
+        // Register prefix parse functions
         parser
             .prefix_parse_fns
             .insert(TokenType::Identifier, Parser::parse_identifier);
@@ -53,10 +55,27 @@ impl Parser {
             .insert(TokenType::Int, Parser::parse_integer_literal);
         parser
             .prefix_parse_fns
+            .insert(TokenType::True, Parser::parse_boolean_literal);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::False, Parser::parse_boolean_literal);
+        parser
+            .prefix_parse_fns
             .insert(TokenType::Bang, Parser::parse_prefix_expression);
         parser
             .prefix_parse_fns
             .insert(TokenType::Minus, Parser::parse_prefix_expression);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::Lparen, Parser::parse_grouped_expression);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::If, Parser::parse_if_expression);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::Function, Parser::parse_function_literal);
+
+        // Register infix parse functions
         parser
             .infix_parse_fns
             .insert(TokenType::Plus, Parser::parse_infix_expression);
@@ -81,6 +100,9 @@ impl Parser {
         parser
             .infix_parse_fns
             .insert(TokenType::GreaterThan, Parser::parse_infix_expression);
+        parser
+            .infix_parse_fns
+            .insert(TokenType::Lparen, Parser::parse_call_expression);
         return parser;
     }
 
@@ -139,18 +161,18 @@ impl Parser {
 
         self.expect_peek(TokenType::Assign);
 
-        // TODO: DELETE THIS ONCE WE HAVE EXPRESSION PARSING
-        while self.current_token.token_type != TokenType::Semicolon {
+        self.next_token();
+
+        let value = self.parse_expression(Precedence::Lowest);
+
+        if self.peek_token.token_type == TokenType::Semicolon {
             self.next_token();
         }
-        let dummy_object = Identifier {
-            token: self.current_token.clone(),
-            value: self.current_token.literal.clone(),
-        };
+
         return LetStatement {
             token: first_token,
             name: name,
-            value: Expression::Identifier(dummy_object),
+            value: value,
         };
     }
 
@@ -159,18 +181,15 @@ impl Parser {
 
         self.next_token();
 
-        // TODO: DELETE THIS ONCE WE HAVE EXPRESSION PARSING
-        while self.current_token.token_type != TokenType::Semicolon {
+        let return_value = self.parse_expression(Precedence::Lowest);
+
+        if self.peek_token.token_type == TokenType::Semicolon {
             self.next_token();
         }
-        let dummy_object = Identifier {
-            token: self.current_token.clone(),
-            value: self.current_token.literal.clone(),
-        };
 
         return ReturnStatement {
             token: first_token,
-            return_value: Expression::Identifier(dummy_object),
+            return_value: return_value,
         };
     }
 
@@ -185,6 +204,26 @@ impl Parser {
         }
 
         return statement;
+    }
+
+    fn parse_block_statement(&mut self) -> BlockStatement {
+        let current_token = self.current_token.clone();
+
+        self.next_token();
+
+        let mut statements = vec![];
+        while self.current_token.token_type != TokenType::Rbrace
+            && self.current_token.token_type != TokenType::Eof
+        {
+            let statement = self.parse_statement();
+            statements.push(statement);
+            self.next_token();
+        }
+
+        return BlockStatement {
+            token: current_token,
+            statements: statements,
+        };
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Expression {
@@ -235,6 +274,13 @@ impl Parser {
         }
     }
 
+    fn parse_boolean_literal(&mut self) -> Expression {
+        return Expression::BooleanLiteral(BooleanLiteral {
+            token: self.current_token.clone(),
+            value: self.current_token.token_type == TokenType::True,
+        });
+    }
+
     fn parse_prefix_expression(&mut self) -> Expression {
         let operator_token = self.current_token.clone();
 
@@ -245,6 +291,89 @@ impl Parser {
             operator: operator_token.literal,
             right: Box::new(self.parse_expression(Precedence::Prefix)),
         });
+    }
+
+    fn parse_grouped_expression(&mut self) -> Expression {
+        self.next_token();
+
+        let expression = self.parse_expression(Precedence::Lowest);
+
+        self.expect_peek(TokenType::Rparen);
+
+        return expression;
+    }
+
+    fn parse_if_expression(&mut self) -> Expression {
+        let current_token = self.current_token.clone();
+        self.expect_peek(TokenType::Lparen);
+
+        self.next_token();
+        let condition = self.parse_expression(Precedence::Lowest);
+
+        self.expect_peek(TokenType::Rparen);
+        self.expect_peek(TokenType::Lbrace);
+
+        let consequence = self.parse_block_statement();
+
+        let mut alternative = None;
+        if self.peek_token.token_type == TokenType::Else {
+            self.next_token();
+            self.expect_peek(TokenType::Lbrace);
+            alternative = Some(self.parse_block_statement());
+        }
+
+        return Expression::IfExpression(IfExpression {
+            token: current_token,
+            condition: Box::new(condition),
+            consequence: consequence,
+            alternative: alternative,
+        });
+    }
+
+    fn parse_function_literal(&mut self) -> Expression {
+        let current_token = self.current_token.clone();
+        self.expect_peek(TokenType::Lparen);
+
+        let parameters = self.parse_function_parameters();
+
+        self.expect_peek(TokenType::Lbrace);
+
+        let body = self.parse_block_statement();
+
+        return Expression::FunctionLiteral(FunctionLiteral {
+            token: current_token,
+            parameters: parameters,
+            body: body,
+        });
+    }
+
+    fn parse_function_parameters(&mut self) -> Vec<Identifier> {
+        let mut parameters = vec![];
+
+        if self.peek_token.token_type == TokenType::Rparen {
+            self.next_token();
+            return parameters;
+        }
+
+        self.next_token();
+
+        parameters.push(Identifier {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        });
+
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token();
+            self.next_token();
+            parameters.push(Identifier {
+                token: self.current_token.clone(),
+                value: self.current_token.literal.clone(),
+            });
+        }
+
+        self.expect_peek(TokenType::Rparen);
+
+        return parameters;
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Expression {
@@ -261,13 +390,52 @@ impl Parser {
             right: Box::new(right_expression),
         });
     }
+
+    fn parse_call_expression(&mut self, function: Expression) -> Expression {
+        return Expression::CallExpression(CallExpression {
+            token: self.current_token.clone(),
+            function: Box::new(function),
+            arguments: self.parse_call_arguments(),
+        });
+    }
+
+    fn parse_call_arguments(&mut self) -> Vec<Expression> {
+        let mut arguments = vec![];
+
+        if self.peek_token.token_type == TokenType::Rparen {
+            self.next_token();
+            return arguments;
+        }
+
+        self.next_token();
+        arguments.push(self.parse_expression(Precedence::Lowest));
+
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token();
+            self.next_token();
+            arguments.push(self.parse_expression(Precedence::Lowest));
+        }
+
+        self.expect_peek(TokenType::Rparen);
+
+        return arguments;
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Expression, Statement};
+    use crate::ast::{
+        BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
+        FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
+        ReturnStatement, Statement,
+    };
     use crate::lexer::Lexer;
     use crate::parser::Parser;
+    use crate::token::{Token, TokenType};
+
+    /*
+     * Helper functions for testing
+     */
 
     fn check_parser_errors(parser: Parser) {
         assert_eq!(
@@ -278,19 +446,134 @@ mod tests {
         );
     }
 
-    fn test_statement(statement: &Statement, name: String) {
-        match statement {
-            Statement::LetStatement(statement) => {
-                assert_eq!(statement.token.literal, "let");
-                assert_eq!(statement.name.token.literal, name);
-                assert_eq!(statement.name.value, name);
-            }
-            _ => panic!(
-                "Statement was not parsed as a let statement: {:?}",
-                statement
-            ),
-        }
+    fn build_expression_statement(expression: Expression) -> Statement {
+        return Statement::ExpressionStatement(ExpressionStatement {
+            token: expression.get_token().clone(),
+            expression: expression,
+        });
     }
+
+    fn build_return_statement(value: Expression) -> Statement {
+        return Statement::ReturnStatement(ReturnStatement {
+            token: Token {
+                token_type: TokenType::Return,
+                literal: "return".to_string(),
+            },
+            return_value: value,
+        });
+    }
+
+    fn build_let_statement(name: Expression, value: Expression) -> Statement {
+        return Statement::LetStatement(LetStatement {
+            token: Token {
+                token_type: TokenType::Let,
+                literal: "let".to_string(),
+            },
+            name: match name {
+                Expression::Identifier(identifier) => identifier,
+                _ => panic!("name is not an identifier"),
+            },
+            value: value,
+        });
+    }
+
+    fn build_identifier(value: &str) -> Identifier {
+        return Identifier {
+            token: Token {
+                token_type: TokenType::Identifier,
+                literal: value.to_string(),
+            },
+            value: value.to_string(),
+        };
+    }
+
+    fn build_integer_literal_expression(value: i64) -> Expression {
+        return Expression::IntegerLiteral(IntegerLiteral {
+            token: Token {
+                token_type: TokenType::Int,
+                literal: value.to_string(),
+            },
+            value: value,
+        });
+    }
+
+    fn build_boolean_literal_expression(value: bool) -> Expression {
+        return Expression::BooleanLiteral(BooleanLiteral {
+            token: Token {
+                token_type: if value {
+                    TokenType::True
+                } else {
+                    TokenType::False
+                },
+                literal: if value {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                },
+            },
+            value: value,
+        });
+    }
+
+    fn build_if_expression(
+        condition: Expression,
+        consequence: Statement,
+        alternative: Option<Statement>,
+    ) -> Expression {
+        return Expression::IfExpression(IfExpression {
+            token: Token {
+                token_type: TokenType::If,
+                literal: "if".to_string(),
+            },
+            condition: Box::new(condition),
+            consequence: match consequence {
+                Statement::BlockStatement(consequence) => consequence,
+                _ => panic!("consequence is not a BlockStatement"),
+            },
+            alternative: match alternative {
+                Some(Statement::BlockStatement(alternative)) => Some(alternative),
+                None => None,
+                _ => panic!("alternative is not a BlockStatement"),
+            },
+        });
+    }
+
+    fn build_infix_expression(left: Expression, token: Token, right: Expression) -> Expression {
+        return Expression::InfixExpression(InfixExpression {
+            token: token.clone(),
+            left: Box::new(left),
+            operator: token.literal,
+            right: Box::new(right),
+        });
+    }
+
+    fn build_function_literal_expression(
+        parameters: Vec<Identifier>,
+        body: BlockStatement,
+    ) -> Expression {
+        return Expression::FunctionLiteral(FunctionLiteral {
+            token: Token {
+                token_type: TokenType::Function,
+                literal: "fn".to_string(),
+            },
+            parameters: parameters,
+            body: body,
+        });
+    }
+
+    fn build_block_statement(statements: Vec<Statement>) -> BlockStatement {
+        return BlockStatement {
+            token: Token {
+                token_type: TokenType::Lbrace,
+                literal: "{".to_string(),
+            },
+            statements: statements,
+        };
+    }
+
+    /*
+     * Tests
+     */
 
     #[test]
     fn test_let_statements() {
@@ -308,9 +591,22 @@ let foobar = 838383;";
             "Unexpected amount of statements parsed"
         );
 
-        let expected_identifiers = vec!["x", "y", "foobar"];
+        let expected_statements = vec![
+            build_let_statement(
+                Expression::Identifier(build_identifier("x")),
+                build_integer_literal_expression(5),
+            ),
+            build_let_statement(
+                Expression::Identifier(build_identifier("y")),
+                build_integer_literal_expression(10),
+            ),
+            build_let_statement(
+                Expression::Identifier(build_identifier("foobar")),
+                build_integer_literal_expression(838383),
+            ),
+        ];
         for (i, statement) in program.statements.iter().enumerate() {
-            test_statement(statement, expected_identifiers[i].to_string());
+            assert_eq!(*statement, expected_statements[i],);
         }
     }
 
@@ -330,16 +626,13 @@ return 993322;";
             "Unexpected amount of statements parsed"
         );
 
-        for statement in program.statements.iter() {
-            match statement {
-                Statement::ReturnStatement(statement) => {
-                    assert_eq!(statement.token.literal, "return");
-                }
-                _ => panic!(
-                    "Statement was not parsed as a return statement: {:?}",
-                    statement
-                ),
-            }
+        let expected_statements = vec![
+            build_return_statement(build_integer_literal_expression(5)),
+            build_return_statement(build_integer_literal_expression(10)),
+            build_return_statement(build_integer_literal_expression(993322)),
+        ];
+        for (i, statement) in program.statements.iter().enumerate() {
+            assert_eq!(*statement, expected_statements[i]);
         }
     }
 
@@ -360,26 +653,10 @@ return 993322;";
         );
 
         for statement in program.statements.iter() {
-            match statement {
-                Statement::ExpressionStatement(statement) => match &statement.expression {
-                    Expression::Identifier(expression) => {
-                        assert_eq!(expression.value, "foobar".to_string());
-                        assert_eq!(expression.token.literal, "foobar".to_string());
-                    }
-                    _ => panic!("Expression is not an identifier as expected!"),
-                },
-                _ => panic!("Statement is not an expression statement as expected!"),
-            }
-        }
-    }
-
-    fn test_integer_literal(expression: &Expression, value: i64) {
-        match expression {
-            Expression::IntegerLiteral(expression) => {
-                assert_eq!(expression.value, value);
-                assert_eq!(expression.token.literal, value.to_string());
-            }
-            _ => panic!("Expression is not an integer literal as expected!"),
+            assert_eq!(
+                *statement,
+                build_expression_statement(Expression::Identifier(build_identifier("foobar")))
+            );
         }
     }
 
@@ -392,7 +669,6 @@ return 993322;";
         let program = parser.parse_program();
 
         check_parser_errors(parser);
-
         assert_eq!(
             program.statements.len(),
             1,
@@ -400,12 +676,257 @@ return 993322;";
         );
 
         for statement in program.statements.iter() {
-            match statement {
-                Statement::ExpressionStatement(statement) => {
-                    test_integer_literal(&statement.expression, 5);
-                }
-                _ => panic!("Statement is not an expression statement as expected!"),
+            assert_eq!(
+                *statement,
+                build_expression_statement(build_integer_literal_expression(5)),
+            );
+        }
+    }
+
+    #[test]
+    fn test_boolean_literal_expression() {
+        let input = "true;";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            assert_eq!(
+                *statement,
+                build_expression_statement(build_boolean_literal_expression(true)),
+            );
+        }
+    }
+
+    #[test]
+    fn test_if_expression() {
+        let input = "if (x < y) { x }";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            assert_eq!(
+                *statement,
+                build_expression_statement(build_if_expression(
+                    build_infix_expression(
+                        Expression::Identifier(build_identifier("x")),
+                        Token {
+                            token_type: TokenType::LessThan,
+                            literal: "<".to_string()
+                        },
+                        Expression::Identifier(build_identifier("y")),
+                    ),
+                    Statement::BlockStatement(build_block_statement(vec![
+                        build_expression_statement(Expression::Identifier(build_identifier("x")),)
+                    ]),),
+                    None,
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn test_if_else_expression() {
+        let input = "if (x < y) { x } else { y }";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            assert_eq!(
+                *statement,
+                build_expression_statement(build_if_expression(
+                    build_infix_expression(
+                        Expression::Identifier(build_identifier("x")),
+                        Token {
+                            token_type: TokenType::LessThan,
+                            literal: "<".to_string(),
+                        },
+                        Expression::Identifier(build_identifier("y")),
+                    ),
+                    Statement::BlockStatement(build_block_statement(vec![
+                        build_expression_statement(Expression::Identifier(build_identifier("x")),)
+                    ])),
+                    Some(Statement::BlockStatement(build_block_statement(vec![
+                        build_expression_statement(Expression::Identifier(build_identifier("y")),)
+                    ]))),
+                ))
+            );
+        }
+    }
+
+    #[test]
+    fn test_function_literal_expressions() {
+        let input = "fn(x, y) { x + y; }";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            assert_eq!(
+                *statement,
+                build_expression_statement(build_function_literal_expression(
+                    vec![build_identifier("x"), build_identifier("y"),],
+                    build_block_statement(vec![
+                        // TODO: Sort out a better structure for helper functions.
+                        // With your current approach, you were not able to use
+                        // `build_expression_statement` here and helper functions
+                        // are not consistently available for all expressions
+                        // and statements.
+                        Statement::ExpressionStatement(ExpressionStatement {
+                            token: build_identifier("x").token,
+                            expression: build_infix_expression(
+                                Expression::Identifier(build_identifier("x")),
+                                Token {
+                                    token_type: TokenType::Plus,
+                                    literal: "+".to_string()
+                                },
+                                Expression::Identifier(build_identifier("y")),
+                            ),
+                        })
+                    ]),
+                ),)
+            );
+        }
+    }
+
+    // TODO: This can probably be merged into test_function_literal_expressions
+    #[test]
+    fn test_function_parameter_parsing() {
+        struct TestData {
+            input: String,
+            expected_params: Vec<Identifier>,
+        }
+        let tests = vec![
+            TestData {
+                input: "fn() {};".to_string(),
+                expected_params: vec![],
+            },
+            TestData {
+                input: "fn(x) {};".to_string(),
+                expected_params: vec![build_identifier("x")],
+            },
+            TestData {
+                input: "fn(x, y, z) {};".to_string(),
+                expected_params: vec![
+                    build_identifier("x"),
+                    build_identifier("y"),
+                    build_identifier("z"),
+                ],
+            },
+        ];
+
+        for test in tests.iter() {
+            let lexer = Lexer::new(&test.input);
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            check_parser_errors(parser);
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "Unexpected amount of statements parsed"
+            );
+
+            for statement in program.statements.iter() {
+                assert_eq!(
+                    *statement,
+                    build_expression_statement(build_function_literal_expression(
+                        test.expected_params.clone(),
+                        build_block_statement(vec![]),
+                    ),)
+                );
             }
+        }
+    }
+
+    #[test]
+    fn test_call_expression_parsing() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            assert_eq!(
+                *statement,
+                // TODO: Similar to test_function_literal_expressions, this
+                // test was not able to effectively use the existing helper
+                // functions.
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::Identifier,
+                        literal: "add".to_string(),
+                    },
+                    expression: Expression::CallExpression(CallExpression {
+                        token: Token {
+                            token_type: TokenType::Lparen,
+                            literal: "(".to_string(),
+                        },
+                        function: Box::new(Expression::Identifier(build_identifier("add")),),
+                        arguments: vec![
+                            build_integer_literal_expression(1),
+                            build_infix_expression(
+                                build_integer_literal_expression(2),
+                                Token {
+                                    token_type: TokenType::Asterisk,
+                                    literal: "*".to_string(),
+                                },
+                                build_integer_literal_expression(3)
+                            ),
+                            build_infix_expression(
+                                build_integer_literal_expression(4),
+                                Token {
+                                    token_type: TokenType::Plus,
+                                    literal: "+".to_string(),
+                                },
+                                build_integer_literal_expression(5)
+                            )
+                        ],
+                    })
+                })
+            );
         }
     }
 
@@ -414,18 +935,28 @@ return 993322;";
         struct TestData {
             input: String,
             operator: String,
-            integer_value: i64,
+            expression: Expression,
         }
         let tests = vec![
             TestData {
                 input: "!5;".to_string(),
                 operator: "!".to_string(),
-                integer_value: 5,
+                expression: build_integer_literal_expression(5),
             },
             TestData {
                 input: "-5;".to_string(),
                 operator: "-".to_string(),
-                integer_value: 5,
+                expression: build_integer_literal_expression(5),
+            },
+            TestData {
+                input: "!true".to_string(),
+                operator: "!".to_string(),
+                expression: build_boolean_literal_expression(true),
+            },
+            TestData {
+                input: "!false".to_string(),
+                operator: "!".to_string(),
+                expression: build_boolean_literal_expression(false),
             },
         ];
 
@@ -446,7 +977,7 @@ return 993322;";
                     Statement::ExpressionStatement(statement) => match &statement.expression {
                         Expression::PrefixExpression(expression) => {
                             assert_eq!(expression.operator, test.operator);
-                            test_integer_literal(&expression.right, test.integer_value);
+                            assert_eq!(*expression.right, test.expression);
                         }
                         _ => panic!("Expression is not a prefix expression as expected!"),
                     },
@@ -460,58 +991,76 @@ return 993322;";
     fn test_infix_expressions() {
         struct TestData {
             input: String,
-            left: i64,
+            left: Expression,
             operator: String,
-            right: i64,
+            right: Expression,
         }
         let tests = vec![
             TestData {
                 input: "5 + 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "+".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 - 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "-".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 * 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "*".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 / 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "/".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 > 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: ">".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 < 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "<".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 == 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "==".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
             },
             TestData {
                 input: "5 != 5;".to_string(),
-                left: 5,
+                left: build_integer_literal_expression(5),
                 operator: "!=".to_string(),
-                right: 5,
+                right: build_integer_literal_expression(5),
+            },
+            TestData {
+                input: "true == true".to_string(),
+                left: build_boolean_literal_expression(true),
+                operator: "==".to_string(),
+                right: build_boolean_literal_expression(true),
+            },
+            TestData {
+                input: "false == false".to_string(),
+                left: build_boolean_literal_expression(false),
+                operator: "==".to_string(),
+                right: build_boolean_literal_expression(false),
+            },
+            TestData {
+                input: "false != true".to_string(),
+                left: build_boolean_literal_expression(false),
+                operator: "!=".to_string(),
+                right: build_boolean_literal_expression(true),
             },
         ];
 
@@ -531,9 +1080,9 @@ return 993322;";
                 match statement {
                     Statement::ExpressionStatement(statement) => match &statement.expression {
                         Expression::InfixExpression(expression) => {
-                            test_integer_literal(&expression.left, test.left);
+                            assert_eq!(*expression.left, test.left);
                             assert_eq!(expression.operator, test.operator);
-                            test_integer_literal(&expression.right, test.right);
+                            assert_eq!(*expression.right, test.right);
                         }
                         _ => panic!("Expression is not a infix expression as expected!"),
                     },
@@ -597,6 +1146,54 @@ return 993322;";
             TestData {
                 input: "3 + 4 * 5 == 3 * 1 + 4 * 5".to_string(),
                 expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))".to_string(),
+            },
+            TestData {
+                input: "true".to_string(),
+                expected: "true".to_string(),
+            },
+            TestData {
+                input: "false".to_string(),
+                expected: "false".to_string(),
+            },
+            TestData {
+                input: "3 > 5 == false".to_string(),
+                expected: "((3 > 5) == false)".to_string(),
+            },
+            TestData {
+                input: "3 < 5 == true".to_string(),
+                expected: "((3 < 5) == true)".to_string(),
+            },
+            TestData {
+                input: "1 + (2 + 3) + 4".to_string(),
+                expected: "((1 + (2 + 3)) + 4)".to_string(),
+            },
+            TestData {
+                input: "(5 + 5) * 2".to_string(),
+                expected: "((5 + 5) * 2)".to_string(),
+            },
+            TestData {
+                input: "2 / (5 + 5)".to_string(),
+                expected: "(2 / (5 + 5))".to_string(),
+            },
+            TestData {
+                input: "-(5 + 5)".to_string(),
+                expected: "(-(5 + 5))".to_string(),
+            },
+            TestData {
+                input: "!(true == true)".to_string(),
+                expected: "(!(true == true))".to_string(),
+            },
+            TestData {
+                input: "a + add(b * c) + d".to_string(),
+                expected: "((a + add((b * c))) + d)".to_string(),
+            },
+            TestData {
+                input: "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))".to_string(),
+                expected: "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))".to_string(),
+            },
+            TestData {
+                input: "add(a + b + c * d / f + g)".to_string(),
+                expected: "add((((a + b) + ((c * d) / f)) + g))".to_string(),
             },
         ];
 
