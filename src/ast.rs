@@ -65,11 +65,11 @@ impl fmt::Display for IfExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "if ({}) {}{}",
+            "if ({}) {{{}}}{}",
             self.condition,
             self.consequence,
             match &self.alternative {
-                Some(x) => format!(" else {}", x),
+                Some(x) => format!(" else {{{}}}", x),
                 None => "".to_string(),
             }
         )
@@ -85,7 +85,7 @@ impl fmt::Display for FunctionLiteral {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let string_parameters: Vec<String> =
             self.parameters.iter().map(|x| x.to_string()).collect();
-        write!(f, "fn ({}) {}", string_parameters.join(", "), self.body)
+        write!(f, "fn ({}) {{{}}}", string_parameters.join(", "), self.body)
     }
 }
 #[derive(Debug, PartialEq)]

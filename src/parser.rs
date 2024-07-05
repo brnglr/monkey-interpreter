@@ -11,7 +11,7 @@ pub struct Parser {
     lexer: Lexer,
     current_token: Token,
     peek_token: Token,
-    errors: Vec<String>,
+    pub errors: Vec<String>,
     prefix_parse_fns: HashMap<TokenType, for<'a> fn(&'a mut Parser) -> Expression>,
     infix_parse_fns: HashMap<TokenType, for<'a> fn(&'a mut Parser, Expression) -> Expression>,
 }
@@ -28,7 +28,7 @@ pub enum Precedence {
 }
 
 impl Parser {
-    fn new(lexer: Lexer) -> Parser {
+    pub fn new(lexer: Lexer) -> Parser {
         let mut parser = Parser {
             lexer: lexer,
             current_token: Token {
@@ -116,13 +116,14 @@ impl Parser {
             self.next_token();
             return true;
         }
-        self.errors.push(
-            "Expected token type {token_type} but got {self.peek_token.token_type}".to_string(),
-        );
+        self.errors.push(format!(
+            "Expected token type {:?} but got {:?}",
+            token_type, self.peek_token.token_type,
+        ));
         return false;
     }
 
-    fn parse_program(&mut self) -> Program {
+    pub fn parse_program(&mut self) -> Program {
         let mut program = Program {
             statements: Vec::new(),
         };

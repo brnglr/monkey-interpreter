@@ -1,5 +1,5 @@
 use crate::lexer::Lexer;
-use crate::token::{Token, TokenType};
+use crate::parser::Parser;
 use std::env;
 use std::io::Write;
 
@@ -22,14 +22,15 @@ fn main() {
         let mut input_line = String::new();
         std::io::stdin().read_line(&mut input_line).unwrap();
 
-        let mut lexer = Lexer::new(input_line.as_str());
-        let mut token = Token {
-            token_type: TokenType::Illegal,
-            literal: "".to_string(),
-        };
-        while token.token_type != TokenType::Eof {
-            token = lexer.next_token();
-            println!("{:#?}", token);
+        let lexer = Lexer::new(input_line.as_str());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        if parser.errors.len() > 0 {
+            for error in parser.errors.iter() {
+                println!("Error: {error}");
+            }
+        } else {
+            println!("{}", program);
         }
     }
 }
