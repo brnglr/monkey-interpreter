@@ -783,24 +783,40 @@ return 993322;";
 
     #[test]
     fn test_function_literal_expressions() {
-        let input = "fn(x, y) { x + y; }";
-
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        check_parser_errors(parser);
-        assert_eq!(
-            program.statements.len(),
-            1,
-            "Unexpected amount of statements parsed"
-        );
-
-        for statement in program.statements.iter() {
-            assert_eq!(
-                *statement,
-                build_expression_statement(build_function_literal_expression(
-                    vec![build_identifier("x"), build_identifier("y"),],
+        struct TestData {
+            input: String,
+            expected_output: Statement,
+        }
+        let tests = vec![
+            TestData {
+                input: "fn() {};".to_string(),
+                expected_output: build_expression_statement(build_function_literal_expression(
+                    vec![],
+                    build_block_statement(vec![]),
+                )),
+            },
+            TestData {
+                input: "fn(x) {};".to_string(),
+                expected_output: build_expression_statement(build_function_literal_expression(
+                    vec![build_identifier("x")],
+                    build_block_statement(vec![]),
+                )),
+            },
+            TestData {
+                input: "fn(x, y, z) {};".to_string(),
+                expected_output: build_expression_statement(build_function_literal_expression(
+                    vec![
+                        build_identifier("x"),
+                        build_identifier("y"),
+                        build_identifier("z"),
+                    ],
+                    build_block_statement(vec![]),
+                )),
+            },
+            TestData {
+                input: "fn(x, y) { x + y; }".to_string(),
+                expected_output: build_expression_statement(build_function_literal_expression(
+                    vec![build_identifier("x"), build_identifier("y")],
                     build_block_statement(vec![
                         // TODO: Sort out a better structure for helper functions.
                         // With your current approach, you were not able to use
@@ -813,40 +829,13 @@ return 993322;";
                                 Expression::Identifier(build_identifier("x")),
                                 Token {
                                     token_type: TokenType::Plus,
-                                    literal: "+".to_string()
+                                    literal: "+".to_string(),
                                 },
                                 Expression::Identifier(build_identifier("y")),
                             ),
-                        })
+                        }),
                     ]),
-                ),)
-            );
-        }
-    }
-
-    // TODO: This can probably be merged into test_function_literal_expressions
-    #[test]
-    fn test_function_parameter_parsing() {
-        struct TestData {
-            input: String,
-            expected_params: Vec<Identifier>,
-        }
-        let tests = vec![
-            TestData {
-                input: "fn() {};".to_string(),
-                expected_params: vec![],
-            },
-            TestData {
-                input: "fn(x) {};".to_string(),
-                expected_params: vec![build_identifier("x")],
-            },
-            TestData {
-                input: "fn(x, y, z) {};".to_string(),
-                expected_params: vec![
-                    build_identifier("x"),
-                    build_identifier("y"),
-                    build_identifier("z"),
-                ],
+                )),
             },
         ];
 
@@ -863,13 +852,7 @@ return 993322;";
             );
 
             for statement in program.statements.iter() {
-                assert_eq!(
-                    *statement,
-                    build_expression_statement(build_function_literal_expression(
-                        test.expected_params.clone(),
-                        build_block_statement(vec![]),
-                    ),)
-                );
+                assert_eq!(*statement, test.expected_output,);
             }
         }
     }

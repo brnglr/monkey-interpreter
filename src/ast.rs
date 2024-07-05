@@ -44,7 +44,7 @@ impl fmt::Display for IntegerLiteral {
         write!(f, "{}", self.value)
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
