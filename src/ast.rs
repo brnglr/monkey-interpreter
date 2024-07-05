@@ -1,5 +1,10 @@
+use crate::object::{Integer, Object};
 use crate::token::Token;
 use std::fmt;
+
+pub trait ASTNode {
+    fn evaluate(&self) -> Object;
+}
 
 #[derive(Debug, PartialEq)]
 pub struct InfixExpression {
@@ -42,6 +47,11 @@ pub struct IntegerLiteral {
 impl fmt::Display for IntegerLiteral {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+impl ASTNode for IntegerLiteral {
+    fn evaluate(&self) -> Object {
+        return Object::Integer(Integer { value: self.value });
     }
 }
 #[derive(Debug, PartialEq)]
@@ -141,6 +151,34 @@ impl fmt::Display for Expression {
         }
     }
 }
+impl ASTNode for Expression {
+    fn evaluate(&self) -> Object {
+        match self {
+            Expression::Identifier(expression) => {
+                todo!()
+            }
+            Expression::IntegerLiteral(expression) => expression.evaluate(),
+            Expression::BooleanLiteral(expression) => {
+                todo!()
+            }
+            Expression::PrefixExpression(expression) => {
+                todo!()
+            }
+            Expression::InfixExpression(expression) => {
+                todo!()
+            }
+            Expression::IfExpression(expression) => {
+                todo!()
+            }
+            Expression::FunctionLiteral(expression) => {
+                todo!()
+            }
+            Expression::CallExpression(expression) => {
+                todo!()
+            }
+        }
+    }
+}
 impl Expression {
     pub fn get_token(&self) -> &Token {
         match self {
@@ -164,6 +202,11 @@ pub struct ExpressionStatement {
 impl fmt::Display for ExpressionStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.expression)
+    }
+}
+impl ASTNode for ExpressionStatement {
+    fn evaluate(&self) -> Object {
+        return self.expression.evaluate();
     }
 }
 #[derive(Debug, PartialEq)]
@@ -225,6 +268,22 @@ impl fmt::Display for Statement {
         }
     }
 }
+impl ASTNode for Statement {
+    fn evaluate(&self) -> Object {
+        match self {
+            Statement::LetStatement(statement) => {
+                todo!()
+            }
+            Statement::ReturnStatement(statement) => {
+                todo!()
+            }
+            Statement::ExpressionStatement(statement) => statement.evaluate(),
+            Statement::BlockStatement(statement) => {
+                todo!()
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Program {
@@ -236,6 +295,17 @@ impl fmt::Display for Program {
             write!(f, "{}", statement)?;
         }
         Ok(())
+    }
+}
+impl ASTNode for Program {
+    fn evaluate(&self) -> Object {
+        let mut result = None;
+        for statement in self.statements.iter() {
+            result = Some(statement.evaluate());
+        }
+        // TODO: Is there a better way of handling the case
+        // of an empty program?
+        return result.expect("Program evaluated to nothing!");
     }
 }
 

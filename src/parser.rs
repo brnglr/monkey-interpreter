@@ -434,9 +434,9 @@ mod tests {
     use crate::parser::Parser;
     use crate::token::{Token, TokenType};
 
-    /*
-     * Helper functions for testing
-     */
+    // =========================================================
+    // Helper functions for testing
+    // =========================================================
 
     fn check_parser_errors(parser: Parser) {
         assert_eq!(
@@ -565,9 +565,9 @@ mod tests {
         };
     }
 
-    /*
-     * Tests
-     */
+    // =========================================================
+    // Tests
+    // =========================================================
 
     #[test]
     fn test_let_statements() {
