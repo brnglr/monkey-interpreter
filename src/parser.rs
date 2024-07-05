@@ -447,13 +447,6 @@ mod tests {
         );
     }
 
-    fn build_expression_statement(expression: Expression) -> Statement {
-        return Statement::ExpressionStatement(ExpressionStatement {
-            token: expression.get_token().clone(),
-            expression: expression,
-        });
-    }
-
     fn build_return_statement(value: Expression) -> Statement {
         return Statement::ReturnStatement(ReturnStatement {
             token: Token {
@@ -656,7 +649,10 @@ return 993322;";
         for statement in program.statements.iter() {
             assert_eq!(
                 *statement,
-                build_expression_statement(Expression::Identifier(build_identifier("foobar")))
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: build_identifier("foobar").token,
+                    expression: Expression::Identifier(build_identifier("foobar"))
+                })
             );
         }
     }
@@ -679,7 +675,10 @@ return 993322;";
         for statement in program.statements.iter() {
             assert_eq!(
                 *statement,
-                build_expression_statement(build_integer_literal_expression(5)),
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: build_integer_literal_expression(5).get_token().clone(),
+                    expression: build_integer_literal_expression(5),
+                }),
             );
         }
     }
@@ -702,7 +701,10 @@ return 993322;";
         for statement in program.statements.iter() {
             assert_eq!(
                 *statement,
-                build_expression_statement(build_boolean_literal_expression(true)),
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: build_boolean_literal_expression(true).get_token().clone(),
+                    expression: build_boolean_literal_expression(true),
+                })
             );
         }
     }
@@ -725,20 +727,29 @@ return 993322;";
         for statement in program.statements.iter() {
             assert_eq!(
                 *statement,
-                build_expression_statement(build_if_expression(
-                    build_infix_expression(
-                        Expression::Identifier(build_identifier("x")),
-                        Token {
-                            token_type: TokenType::LessThan,
-                            literal: "<".to_string()
-                        },
-                        Expression::Identifier(build_identifier("y")),
-                    ),
-                    Statement::BlockStatement(build_block_statement(vec![
-                        build_expression_statement(Expression::Identifier(build_identifier("x")),)
-                    ]),),
-                    None,
-                ))
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::If,
+                        literal: "if".to_string()
+                    },
+                    expression: build_if_expression(
+                        build_infix_expression(
+                            Expression::Identifier(build_identifier("x")),
+                            Token {
+                                token_type: TokenType::LessThan,
+                                literal: "<".to_string()
+                            },
+                            Expression::Identifier(build_identifier("y")),
+                        ),
+                        Statement::BlockStatement(build_block_statement(vec![
+                            Statement::ExpressionStatement(ExpressionStatement {
+                                token: build_identifier("x").token,
+                                expression: Expression::Identifier(build_identifier("x"))
+                            })
+                        ])),
+                        None,
+                    )
+                })
             );
         }
     }
@@ -761,22 +772,34 @@ return 993322;";
         for statement in program.statements.iter() {
             assert_eq!(
                 *statement,
-                build_expression_statement(build_if_expression(
-                    build_infix_expression(
-                        Expression::Identifier(build_identifier("x")),
-                        Token {
-                            token_type: TokenType::LessThan,
-                            literal: "<".to_string(),
-                        },
-                        Expression::Identifier(build_identifier("y")),
-                    ),
-                    Statement::BlockStatement(build_block_statement(vec![
-                        build_expression_statement(Expression::Identifier(build_identifier("x")),)
-                    ])),
-                    Some(Statement::BlockStatement(build_block_statement(vec![
-                        build_expression_statement(Expression::Identifier(build_identifier("y")),)
-                    ]))),
-                ))
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::If,
+                        literal: "if".to_string(),
+                    },
+                    expression: build_if_expression(
+                        build_infix_expression(
+                            Expression::Identifier(build_identifier("x")),
+                            Token {
+                                token_type: TokenType::LessThan,
+                                literal: "<".to_string(),
+                            },
+                            Expression::Identifier(build_identifier("y")),
+                        ),
+                        Statement::BlockStatement(build_block_statement(vec![
+                            Statement::ExpressionStatement(ExpressionStatement {
+                                token: build_identifier("x").token,
+                                expression: Expression::Identifier(build_identifier("x"))
+                            })
+                        ])),
+                        Some(Statement::BlockStatement(build_block_statement(vec![
+                            Statement::ExpressionStatement(ExpressionStatement {
+                                token: build_identifier("y").token,
+                                expression: Expression::Identifier(build_identifier("y"))
+                            })
+                        ]))),
+                    )
+                })
             );
         }
     }
@@ -790,52 +813,71 @@ return 993322;";
         let tests = vec![
             TestData {
                 input: "fn() {};".to_string(),
-                expected_output: build_expression_statement(build_function_literal_expression(
-                    vec![],
-                    build_block_statement(vec![]),
-                )),
+                expected_output: Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::Function,
+                        literal: "fn".to_string(),
+                    },
+                    expression: build_function_literal_expression(
+                        vec![],
+                        build_block_statement(vec![]),
+                    ),
+                }),
             },
             TestData {
                 input: "fn(x) {};".to_string(),
-                expected_output: build_expression_statement(build_function_literal_expression(
-                    vec![build_identifier("x")],
-                    build_block_statement(vec![]),
-                )),
+                expected_output: Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::Function,
+                        literal: "fn".to_string(),
+                    },
+                    expression: build_function_literal_expression(
+                        vec![build_identifier("x")],
+                        build_block_statement(vec![]),
+                    ),
+                }),
             },
             TestData {
                 input: "fn(x, y, z) {};".to_string(),
-                expected_output: build_expression_statement(build_function_literal_expression(
-                    vec![
-                        build_identifier("x"),
-                        build_identifier("y"),
-                        build_identifier("z"),
-                    ],
-                    build_block_statement(vec![]),
-                )),
+                expected_output: Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::Function,
+                        literal: "fn".to_string(),
+                    },
+                    expression: build_function_literal_expression(
+                        vec![
+                            build_identifier("x"),
+                            build_identifier("y"),
+                            build_identifier("z"),
+                        ],
+                        build_block_statement(vec![]),
+                    ),
+                }),
             },
             TestData {
                 input: "fn(x, y) { x + y; }".to_string(),
-                expected_output: build_expression_statement(build_function_literal_expression(
-                    vec![build_identifier("x"), build_identifier("y")],
-                    build_block_statement(vec![
-                        // TODO: Sort out a better structure for helper functions.
-                        // With your current approach, you were not able to use
-                        // `build_expression_statement` here and helper functions
-                        // are not consistently available for all expressions
-                        // and statements.
-                        Statement::ExpressionStatement(ExpressionStatement {
-                            token: build_identifier("x").token,
-                            expression: build_infix_expression(
-                                Expression::Identifier(build_identifier("x")),
-                                Token {
-                                    token_type: TokenType::Plus,
-                                    literal: "+".to_string(),
-                                },
-                                Expression::Identifier(build_identifier("y")),
-                            ),
-                        }),
-                    ]),
-                )),
+                expected_output: Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::Function,
+                        literal: "fn".to_string(),
+                    },
+                    expression: build_function_literal_expression(
+                        vec![build_identifier("x"), build_identifier("y")],
+                        build_block_statement(vec![Statement::ExpressionStatement(
+                            ExpressionStatement {
+                                token: build_identifier("x").token,
+                                expression: build_infix_expression(
+                                    Expression::Identifier(build_identifier("x")),
+                                    Token {
+                                        token_type: TokenType::Plus,
+                                        literal: "+".to_string(),
+                                    },
+                                    Expression::Identifier(build_identifier("y")),
+                                ),
+                            },
+                        )]),
+                    ),
+                }),
             },
         ];
 
@@ -875,9 +917,6 @@ return 993322;";
         for statement in program.statements.iter() {
             assert_eq!(
                 *statement,
-                // TODO: Similar to test_function_literal_expressions, this
-                // test was not able to effectively use the existing helper
-                // functions.
                 Statement::ExpressionStatement(ExpressionStatement {
                     token: Token {
                         token_type: TokenType::Identifier,
