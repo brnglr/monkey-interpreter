@@ -9,7 +9,7 @@ pub fn eval<T: ASTNode>(node: T) -> Object {
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Boolean, Integer, Object};
+    use crate::object::{Integer, Object, FALSE, NULL, TRUE};
     use crate::parser::Parser;
 
     // =========================================================
@@ -26,10 +26,6 @@ mod tests {
 
     fn build_integer_object(value: i64) -> Object {
         return Object::Integer(Integer { value: value });
-    }
-
-    fn build_boolean_object(value: bool) -> Object {
-        return Object::Boolean(Boolean { value: value });
     }
 
     // =========================================================
@@ -120,79 +116,79 @@ mod tests {
         let tests = vec![
             TestData {
                 input: "true;".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "false".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "1 < 2".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "1 > 2".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "1 < 1".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "1 > 1".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "1 == 1".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "1 != 1".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "1 == 2".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "1 != 2".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "true == true".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "false == false".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "true == false".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "true != false".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "false != true".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "(1 < 2) == true".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "(1 < 2) == false".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "(1 > 2) == true".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "(1 > 2) == false".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
         ];
 
@@ -211,44 +207,90 @@ mod tests {
         let tests = vec![
             TestData {
                 input: "!true".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "!false".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "!5".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "!!true".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "!!false".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "!!5".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "!0".to_string(),
-                expected_eval: build_boolean_object(true),
+                expected_eval: TRUE,
             },
             TestData {
                 input: "!!0".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
             TestData {
                 input: "!-5".to_string(),
-                expected_eval: build_boolean_object(false),
+                expected_eval: FALSE,
             },
         ];
 
         for test in tests.iter() {
-            println!("{}", test.input);
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_eval);
+        }
+    }
+
+    #[test]
+    fn test_if_else_expression() {
+        struct TestData {
+            input: String,
+            expected_eval: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "if (true) { 10 }".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "if (false) { 10 }".to_string(),
+                expected_eval: NULL,
+            },
+            TestData {
+                input: "if (1) { 10 }".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "if (1 < 2) { 10 }".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "if (1 > 2) { 10 }".to_string(),
+                expected_eval: NULL,
+            },
+            TestData {
+                input: "if (1 > 2) { 10 } else { 20 }".to_string(),
+                expected_eval: build_integer_object(20),
+            },
+            TestData {
+                input: "if (1 < 2) { 10 } else { 20 }".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "if (0) { 10 } else { 20 }".to_string(),
+                expected_eval: build_integer_object(20),
+            },
+        ];
+
+        for test in tests.iter() {
             let evaluated = evaluate_input(&test.input);
             assert_eq!(evaluated, test.expected_eval);
         }

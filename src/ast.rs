@@ -163,7 +163,31 @@ impl fmt::Display for IfExpression {
 }
 impl ASTNode for IfExpression {
     fn evaluate(&self) -> Object {
-        todo!()
+        fn is_truthy(evaluated_condition: Object) -> bool {
+            match evaluated_condition {
+                Object::Boolean(boolean) => boolean.value,
+                Object::Null(null) => false,
+                Object::Integer(integer) => {
+                    match integer.value {
+                        // Treat 0 as falsy
+                        0 => false,
+                        _ => true,
+                    }
+                }
+                _ => true,
+            }
+        }
+
+        let evaluated_condition = self.condition.evaluate();
+
+        if is_truthy(evaluated_condition) {
+            return self.consequence.evaluate();
+        }
+
+        match &self.alternative {
+            Some(alternative) => alternative.evaluate(),
+            None => NULL,
+        }
     }
 }
 #[derive(Debug, PartialEq)]
@@ -299,6 +323,11 @@ impl fmt::Display for LetStatement {
         write!(f, "{} {} = {};", self.token.literal, self.name, self.value)
     }
 }
+impl ASTNode for LetStatement {
+    fn evaluate(&self) -> Object {
+        todo!()
+    }
+}
 #[derive(Debug, PartialEq)]
 pub struct ReturnStatement {
     pub token: Token,
@@ -307,6 +336,11 @@ pub struct ReturnStatement {
 impl fmt::Display for ReturnStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} {};", self.token.literal, self.return_value)
+    }
+}
+impl ASTNode for ReturnStatement {
+    fn evaluate(&self) -> Object {
+        todo!()
     }
 }
 #[derive(Debug, PartialEq)]
@@ -320,6 +354,17 @@ impl fmt::Display for BlockStatement {
             write!(f, "{}", statement)?;
         }
         Ok(())
+    }
+}
+impl ASTNode for BlockStatement {
+    fn evaluate(&self) -> Object {
+        let mut result = None;
+        for statement in self.statements.iter() {
+            result = Some(statement.evaluate());
+        }
+        // TODO: Is there a better way of handling the case
+        // of an empty program?
+        return result.expect("Program evaluated to nothing!");
     }
 }
 #[derive(Debug, PartialEq)]
@@ -350,16 +395,10 @@ impl fmt::Display for Statement {
 impl ASTNode for Statement {
     fn evaluate(&self) -> Object {
         match self {
-            Statement::LetStatement(statement) => {
-                todo!()
-            }
-            Statement::ReturnStatement(statement) => {
-                todo!()
-            }
+            Statement::LetStatement(statement) => statement.evaluate(),
+            Statement::ReturnStatement(statement) => statement.evaluate(),
             Statement::ExpressionStatement(statement) => statement.evaluate(),
-            Statement::BlockStatement(statement) => {
-                todo!()
-            }
+            Statement::BlockStatement(statement) => statement.evaluate(),
         }
     }
 }
