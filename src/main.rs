@@ -1,3 +1,4 @@
+use crate::evaluator::eval;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use std::env;
@@ -31,8 +32,10 @@ fn main() {
             for error in parser.errors.iter() {
                 println!("Error: {error}");
             }
-        } else {
-            println!("{}", program);
+            continue;
         }
+
+        let evaluated = eval(program);
+        println!("{:?}", evaluated);
     }
 }

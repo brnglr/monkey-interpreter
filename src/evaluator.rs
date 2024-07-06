@@ -1,7 +1,7 @@
 use crate::ast::ASTNode;
 use crate::object::Object;
 
-fn eval<T: ASTNode>(node: T) -> Object {
+pub fn eval<T: ASTNode>(node: T) -> Object {
     return node.evaluate();
 }
 
@@ -9,7 +9,7 @@ fn eval<T: ASTNode>(node: T) -> Object {
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Integer, Object};
+    use crate::object::{Boolean, Integer, Object};
     use crate::parser::Parser;
 
     // =========================================================
@@ -28,6 +28,10 @@ mod tests {
         return Object::Integer(Integer { value: value });
     }
 
+    fn build_boolean_object(value: bool) -> Object {
+        return Object::Boolean(Boolean { value: value });
+    }
+
     // =========================================================
     // Tests
     // =========================================================
@@ -36,22 +40,105 @@ mod tests {
     fn test_eval_integer_expression() {
         struct TestData {
             input: String,
-            expected_evaluation: Object,
+            expected_eval: Object,
         }
         let tests = vec![
             TestData {
                 input: "5;".to_string(),
-                expected_evaluation: build_integer_object(5),
+                expected_eval: build_integer_object(5),
             },
             TestData {
                 input: "10".to_string(),
-                expected_evaluation: build_integer_object(10),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "-5".to_string(),
+                expected_eval: build_integer_object(-5),
+            },
+            TestData {
+                input: "-10".to_string(),
+                expected_eval: build_integer_object(-10),
             },
         ];
 
         for test in tests.iter() {
             let evaluated = evaluate_input(&test.input);
-            assert_eq!(evaluated, test.expected_evaluation);
+            assert_eq!(evaluated, test.expected_eval);
+        }
+    }
+
+    #[test]
+    fn test_eval_boolean_expression() {
+        struct TestData {
+            input: String,
+            expected_eval: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "true;".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "false".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_eval);
+        }
+    }
+
+    #[test]
+    fn test_bang_operator() {
+        struct TestData {
+            input: String,
+            expected_eval: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "!true".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "!false".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "!5".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "!!true".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "!!false".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "!!5".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "!0".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "!!0".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "!-5".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+        ];
+
+        for test in tests.iter() {
+            println!("{}", test.input);
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_eval);
         }
     }
 }

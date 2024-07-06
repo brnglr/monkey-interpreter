@@ -1,4 +1,4 @@
-use crate::object::{Integer, Object};
+use crate::object::{Integer, Object, FALSE, NULL, TRUE};
 use crate::token::Token;
 use std::fmt;
 
@@ -18,6 +18,11 @@ impl fmt::Display for InfixExpression {
         write!(f, "({} {} {})", self.left, self.operator, self.right)
     }
 }
+impl ASTNode for InfixExpression {
+    fn evaluate(&self) -> Object {
+        todo!()
+    }
+}
 #[derive(Debug, PartialEq)]
 pub struct PrefixExpression {
     pub token: Token,
@@ -29,6 +34,36 @@ impl fmt::Display for PrefixExpression {
         write!(f, "({}{})", self.operator, self.right)
     }
 }
+impl ASTNode for PrefixExpression {
+    fn evaluate(&self) -> Object {
+        let right = self.right.evaluate();
+        match self.operator.as_str() {
+            "!" => match right {
+                Object::Boolean(boolean) => match boolean.value {
+                    true => FALSE,
+                    false => TRUE,
+                },
+                Object::Integer(integer) => {
+                    if integer.value != 0 {
+                        return FALSE;
+                    } else {
+                        return TRUE;
+                    }
+                }
+                _ => FALSE,
+            },
+            "-" => match right {
+                Object::Integer(integer) => {
+                    return Object::Integer(Integer {
+                        value: -integer.value,
+                    });
+                }
+                _ => NULL,
+            },
+            _ => todo!(),
+        }
+    }
+}
 #[derive(Debug, PartialEq)]
 pub struct BooleanLiteral {
     pub token: Token,
@@ -37,6 +72,15 @@ pub struct BooleanLiteral {
 impl fmt::Display for BooleanLiteral {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
+    }
+}
+impl ASTNode for BooleanLiteral {
+    fn evaluate(&self) -> Object {
+        if self.value {
+            return TRUE;
+        } else {
+            return FALSE;
+        }
     }
 }
 #[derive(Debug, PartialEq)]
@@ -64,6 +108,11 @@ impl fmt::Display for Identifier {
         write!(f, "{}", self.value)
     }
 }
+impl ASTNode for Identifier {
+    fn evaluate(&self) -> Object {
+        todo!()
+    }
+}
 #[derive(Debug, PartialEq)]
 pub struct IfExpression {
     pub token: Token,
@@ -85,6 +134,11 @@ impl fmt::Display for IfExpression {
         )
     }
 }
+impl ASTNode for IfExpression {
+    fn evaluate(&self) -> Object {
+        todo!()
+    }
+}
 #[derive(Debug, PartialEq)]
 pub struct FunctionLiteral {
     pub token: Token,
@@ -98,6 +152,11 @@ impl fmt::Display for FunctionLiteral {
         write!(f, "fn ({}) {{{}}}", string_parameters.join(", "), self.body)
     }
 }
+impl ASTNode for FunctionLiteral {
+    fn evaluate(&self) -> Object {
+        todo!()
+    }
+}
 #[derive(Debug, PartialEq)]
 pub struct CallExpression {
     pub token: Token,
@@ -108,6 +167,11 @@ impl fmt::Display for CallExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let string_arguments: Vec<String> = self.arguments.iter().map(|x| x.to_string()).collect();
         write!(f, "{}({})", self.function, string_arguments.join(", "))
+    }
+}
+impl ASTNode for CallExpression {
+    fn evaluate(&self) -> Object {
+        todo!()
     }
 }
 #[derive(Debug, PartialEq)]
@@ -158,24 +222,12 @@ impl ASTNode for Expression {
                 todo!()
             }
             Expression::IntegerLiteral(expression) => expression.evaluate(),
-            Expression::BooleanLiteral(expression) => {
-                todo!()
-            }
-            Expression::PrefixExpression(expression) => {
-                todo!()
-            }
-            Expression::InfixExpression(expression) => {
-                todo!()
-            }
-            Expression::IfExpression(expression) => {
-                todo!()
-            }
-            Expression::FunctionLiteral(expression) => {
-                todo!()
-            }
-            Expression::CallExpression(expression) => {
-                todo!()
-            }
+            Expression::BooleanLiteral(expression) => expression.evaluate(),
+            Expression::PrefixExpression(expression) => expression.evaluate(),
+            Expression::InfixExpression(expression) => expression.evaluate(),
+            Expression::IfExpression(expression) => expression.evaluate(),
+            Expression::FunctionLiteral(expression) => expression.evaluate(),
+            Expression::CallExpression(expression) => expression.evaluate(),
         }
     }
 }
