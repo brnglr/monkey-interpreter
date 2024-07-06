@@ -59,6 +59,50 @@ mod tests {
                 input: "-10".to_string(),
                 expected_eval: build_integer_object(-10),
             },
+            TestData {
+                input: "5 + 5 + 5 + 5 - 10".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "2 * 2 * 2 * 2 * 2".to_string(),
+                expected_eval: build_integer_object(32),
+            },
+            TestData {
+                input: "-50 + 100 + -50".to_string(),
+                expected_eval: build_integer_object(0),
+            },
+            TestData {
+                input: "5 * 2 + 10".to_string(),
+                expected_eval: build_integer_object(20),
+            },
+            TestData {
+                input: "5 + 2 * 10".to_string(),
+                expected_eval: build_integer_object(25),
+            },
+            TestData {
+                input: "20 + 2 * -10".to_string(),
+                expected_eval: build_integer_object(0),
+            },
+            TestData {
+                input: "50 / 2 * 2 + 10".to_string(),
+                expected_eval: build_integer_object(60),
+            },
+            TestData {
+                input: "2 * (5 + 10)".to_string(),
+                expected_eval: build_integer_object(30),
+            },
+            TestData {
+                input: "3 * 3 * 3 + 10".to_string(),
+                expected_eval: build_integer_object(37),
+            },
+            TestData {
+                input: "3 * (3 * 3) + 10".to_string(),
+                expected_eval: build_integer_object(37),
+            },
+            TestData {
+                input: "(5 + 10 * 2 + 15 / 3) * 2 + -10".to_string(),
+                expected_eval: build_integer_object(50),
+            },
         ];
 
         for test in tests.iter() {
@@ -81,6 +125,74 @@ mod tests {
             TestData {
                 input: "false".to_string(),
                 expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "1 < 2".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "1 > 2".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "1 < 1".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "1 > 1".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "1 == 1".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "1 != 1".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "1 == 2".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "1 != 2".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "true == true".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "false == false".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "true == false".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "true != false".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "false != true".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "(1 < 2) == true".to_string(),
+                expected_eval: build_boolean_object(true),
+            },
+            TestData {
+                input: "(1 < 2) == false".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "(1 > 2) == true".to_string(),
+                expected_eval: build_boolean_object(false),
+            },
+            TestData {
+                input: "(1 > 2) == false".to_string(),
+                expected_eval: build_boolean_object(true),
             },
         ];
 

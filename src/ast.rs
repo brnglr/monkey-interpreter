@@ -1,4 +1,4 @@
-use crate::object::{Integer, Object, FALSE, NULL, TRUE};
+use crate::object::{get_boolean_object, Integer, Object, FALSE, NULL, TRUE};
 use crate::token::Token;
 use std::fmt;
 
@@ -20,7 +20,41 @@ impl fmt::Display for InfixExpression {
 }
 impl ASTNode for InfixExpression {
     fn evaluate(&self) -> Object {
-        todo!()
+        let left = self.left.evaluate();
+        let right = self.right.evaluate();
+        match left {
+            Object::Integer(left_integer) => match right {
+                Object::Integer(right_integer) => match self.operator.as_str() {
+                    "+" => Object::Integer(Integer {
+                        value: left_integer.value + right_integer.value,
+                    }),
+                    "-" => Object::Integer(Integer {
+                        value: left_integer.value - right_integer.value,
+                    }),
+                    "*" => Object::Integer(Integer {
+                        value: left_integer.value * right_integer.value,
+                    }),
+                    "/" => Object::Integer(Integer {
+                        value: left_integer.value / right_integer.value,
+                    }),
+                    "<" => get_boolean_object(left_integer.value < right_integer.value),
+                    ">" => get_boolean_object(left_integer.value > right_integer.value),
+                    "==" => get_boolean_object(left_integer.value == right_integer.value),
+                    "!=" => get_boolean_object(left_integer.value != right_integer.value),
+                    _ => NULL,
+                },
+                _ => NULL,
+            },
+            Object::Boolean(left_boolean) => match right {
+                Object::Boolean(right_boolean) => match self.operator.as_str() {
+                    "==" => get_boolean_object(left_boolean.value == right_boolean.value),
+                    "!=" => get_boolean_object(left_boolean.value != right_boolean.value),
+                    _ => NULL,
+                },
+                _ => NULL,
+            },
+            _ => NULL,
+        }
     }
 }
 #[derive(Debug, PartialEq)]
@@ -39,10 +73,7 @@ impl ASTNode for PrefixExpression {
         let right = self.right.evaluate();
         match self.operator.as_str() {
             "!" => match right {
-                Object::Boolean(boolean) => match boolean.value {
-                    true => FALSE,
-                    false => TRUE,
-                },
+                Object::Boolean(boolean) => get_boolean_object(!boolean.value),
                 Object::Integer(integer) => {
                     if integer.value != 0 {
                         return FALSE;
@@ -76,11 +107,7 @@ impl fmt::Display for BooleanLiteral {
 }
 impl ASTNode for BooleanLiteral {
     fn evaluate(&self) -> Object {
-        if self.value {
-            return TRUE;
-        } else {
-            return FALSE;
-        }
+        get_boolean_object(self.value)
     }
 }
 #[derive(Debug, PartialEq)]
