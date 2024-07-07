@@ -1,15 +1,15 @@
 use crate::ast::ASTNode;
-use crate::object::Object;
+use crate::object::{Environment, Object};
 
-pub fn eval<T: ASTNode>(node: T) -> Object {
-    return node.evaluate();
+pub fn eval<T: ASTNode>(node: T, environment: &mut Environment) -> Object {
+    return node.evaluate(environment);
 }
 
 #[cfg(test)]
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Error, Integer, Object, FALSE, NULL, TRUE};
+    use crate::object::{Environment, Error, Integer, Object, FALSE, NULL, TRUE};
     use crate::parser::Parser;
 
     // =========================================================
@@ -20,8 +20,9 @@ mod tests {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
+        let mut env = Environment::new();
 
-        return eval(program);
+        return eval(program, &mut env);
     }
 
     fn build_integer_object(value: i64) -> Object {
@@ -340,6 +341,37 @@ mod tests {
     }
 
     #[test]
+    fn test_let_statements() {
+        struct TestData {
+            input: String,
+            expected_eval: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "let a = 5; a;".to_string(),
+                expected_eval: build_integer_object(5),
+            },
+            TestData {
+                input: "let a = 5 * 5; a;".to_string(),
+                expected_eval: build_integer_object(25),
+            },
+            TestData {
+                input: "let a = 5; let b = a; b;".to_string(),
+                expected_eval: build_integer_object(5),
+            },
+            TestData {
+                input: "let a = 5; let b = a; let c = a + b + 5; c;".to_string(),
+                expected_eval: build_integer_object(15),
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_eval);
+        }
+    }
+
+    #[test]
     fn test_error_handling() {
         struct TestData {
             input: String,
@@ -415,6 +447,12 @@ mod tests {
                 input: "if (true + false) {return 1 + true;}".to_string(),
                 expected_error: Object::Error(Error {
                     message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "foobar".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "identifier not found: foobar".to_string(),
                 }),
             },
         ];

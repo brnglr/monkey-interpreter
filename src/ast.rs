@@ -1,9 +1,11 @@
-use crate::object::{get_boolean_object, Error, Integer, Object, ReturnValue, FALSE, NULL, TRUE};
+use crate::object::{
+    get_boolean_object, Environment, Error, Integer, Object, ReturnValue, FALSE, NULL, TRUE,
+};
 use crate::token::Token;
 use std::fmt;
 
 pub trait ASTNode {
-    fn evaluate(&self) -> Object;
+    fn evaluate(&self, environment: &mut Environment) -> Object;
 }
 
 #[derive(Debug, PartialEq)]
@@ -19,12 +21,12 @@ impl fmt::Display for InfixExpression {
     }
 }
 impl ASTNode for InfixExpression {
-    fn evaluate(&self) -> Object {
-        let left = self.left.evaluate();
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        let left = self.left.evaluate(environment);
         if let Object::Error(_) = left {
             return left;
         }
-        let right = self.right.evaluate();
+        let right = self.right.evaluate(environment);
         if let Object::Error(_) = right {
             return right;
         }
@@ -104,8 +106,8 @@ impl fmt::Display for PrefixExpression {
     }
 }
 impl ASTNode for PrefixExpression {
-    fn evaluate(&self) -> Object {
-        let right = self.right.evaluate();
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        let right = self.right.evaluate(environment);
         if let Object::Error(_) = right {
             return right;
         }
@@ -148,7 +150,7 @@ impl fmt::Display for BooleanLiteral {
     }
 }
 impl ASTNode for BooleanLiteral {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         get_boolean_object(self.value)
     }
 }
@@ -163,7 +165,7 @@ impl fmt::Display for IntegerLiteral {
     }
 }
 impl ASTNode for IntegerLiteral {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         return Object::Integer(Integer { value: self.value });
     }
 }
@@ -178,8 +180,14 @@ impl fmt::Display for Identifier {
     }
 }
 impl ASTNode for Identifier {
-    fn evaluate(&self) -> Object {
-        todo!()
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        return match environment.get(&self.value) {
+            // TODO: Get rid of this clone!
+            Some(val) => val.clone(),
+            None => Object::Error(Error {
+                message: format!("identifier not found: {}", self.value),
+            }),
+        };
     }
 }
 #[derive(Debug, PartialEq)]
@@ -204,7 +212,7 @@ impl fmt::Display for IfExpression {
     }
 }
 impl ASTNode for IfExpression {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         fn is_truthy(evaluated_condition: Object) -> bool {
             match evaluated_condition {
                 Object::Boolean(boolean) => boolean.value,
@@ -220,17 +228,17 @@ impl ASTNode for IfExpression {
             }
         }
 
-        let evaluated_condition = self.condition.evaluate();
+        let evaluated_condition = self.condition.evaluate(environment);
         if let Object::Error(_) = evaluated_condition {
             return evaluated_condition;
         }
 
         if is_truthy(evaluated_condition) {
-            return self.consequence.evaluate();
+            return self.consequence.evaluate(environment);
         }
 
         match &self.alternative {
-            Some(alternative) => alternative.evaluate(),
+            Some(alternative) => alternative.evaluate(environment),
             None => NULL,
         }
     }
@@ -249,7 +257,7 @@ impl fmt::Display for FunctionLiteral {
     }
 }
 impl ASTNode for FunctionLiteral {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         todo!()
     }
 }
@@ -266,7 +274,7 @@ impl fmt::Display for CallExpression {
     }
 }
 impl ASTNode for CallExpression {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         todo!()
     }
 }
@@ -312,18 +320,16 @@ impl fmt::Display for Expression {
     }
 }
 impl ASTNode for Expression {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         match self {
-            Expression::Identifier(expression) => {
-                todo!()
-            }
-            Expression::IntegerLiteral(expression) => expression.evaluate(),
-            Expression::BooleanLiteral(expression) => expression.evaluate(),
-            Expression::PrefixExpression(expression) => expression.evaluate(),
-            Expression::InfixExpression(expression) => expression.evaluate(),
-            Expression::IfExpression(expression) => expression.evaluate(),
-            Expression::FunctionLiteral(expression) => expression.evaluate(),
-            Expression::CallExpression(expression) => expression.evaluate(),
+            Expression::Identifier(expression) => expression.evaluate(environment),
+            Expression::IntegerLiteral(expression) => expression.evaluate(environment),
+            Expression::BooleanLiteral(expression) => expression.evaluate(environment),
+            Expression::PrefixExpression(expression) => expression.evaluate(environment),
+            Expression::InfixExpression(expression) => expression.evaluate(environment),
+            Expression::IfExpression(expression) => expression.evaluate(environment),
+            Expression::FunctionLiteral(expression) => expression.evaluate(environment),
+            Expression::CallExpression(expression) => expression.evaluate(environment),
         }
     }
 }
@@ -353,8 +359,8 @@ impl fmt::Display for ExpressionStatement {
     }
 }
 impl ASTNode for ExpressionStatement {
-    fn evaluate(&self) -> Object {
-        return self.expression.evaluate();
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        return self.expression.evaluate(environment);
     }
 }
 #[derive(Debug, PartialEq)]
@@ -369,8 +375,13 @@ impl fmt::Display for LetStatement {
     }
 }
 impl ASTNode for LetStatement {
-    fn evaluate(&self) -> Object {
-        todo!()
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        let evaluated = self.value.evaluate(environment);
+        if let Object::Error(_) = evaluated {
+            return evaluated;
+        }
+
+        return environment.set(self.name.value.clone(), evaluated);
     }
 }
 #[derive(Debug, PartialEq)]
@@ -384,8 +395,8 @@ impl fmt::Display for ReturnStatement {
     }
 }
 impl ASTNode for ReturnStatement {
-    fn evaluate(&self) -> Object {
-        let evaluated = self.return_value.evaluate();
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        let evaluated = self.return_value.evaluate(environment);
         if let Object::Error(_) = evaluated {
             return evaluated;
         }
@@ -408,10 +419,10 @@ impl fmt::Display for BlockStatement {
     }
 }
 impl ASTNode for BlockStatement {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         let mut result = None;
         for statement in self.statements.iter() {
-            result = Some(statement.evaluate());
+            result = Some(statement.evaluate(environment));
 
             match result {
                 Some(Object::ReturnValue(_)) => {
@@ -454,12 +465,12 @@ impl fmt::Display for Statement {
     }
 }
 impl ASTNode for Statement {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         match self {
-            Statement::LetStatement(statement) => statement.evaluate(),
-            Statement::ReturnStatement(statement) => statement.evaluate(),
-            Statement::ExpressionStatement(statement) => statement.evaluate(),
-            Statement::BlockStatement(statement) => statement.evaluate(),
+            Statement::LetStatement(statement) => statement.evaluate(environment),
+            Statement::ReturnStatement(statement) => statement.evaluate(environment),
+            Statement::ExpressionStatement(statement) => statement.evaluate(environment),
+            Statement::BlockStatement(statement) => statement.evaluate(environment),
         }
     }
 }
@@ -477,10 +488,10 @@ impl fmt::Display for Program {
     }
 }
 impl ASTNode for Program {
-    fn evaluate(&self) -> Object {
+    fn evaluate(&self, environment: &mut Environment) -> Object {
         let mut result = None;
         for statement in self.statements.iter() {
-            result = Some(statement.evaluate());
+            result = Some(statement.evaluate(environment));
 
             match result {
                 Some(Object::ReturnValue(return_value)) => {

@@ -1,5 +1,6 @@
 use crate::evaluator::eval;
 use crate::lexer::Lexer;
+use crate::object::Environment;
 use crate::parser::Parser;
 use std::env;
 use std::io::Write;
@@ -15,6 +16,7 @@ const PROMPT: &str = ">>";
 
 fn main() {
     let user = env::var("USER").unwrap();
+    let mut env = Environment::new();
     println!("Welcome {user}!");
     println!("This is the Monkey programming language REPL.\n");
 
@@ -35,7 +37,7 @@ fn main() {
             continue;
         }
 
-        let evaluated = eval(program);
+        let evaluated = eval(program, &mut env);
         println!("{:?}", evaluated);
     }
 }
