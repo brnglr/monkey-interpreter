@@ -1,4 +1,4 @@
-use crate::object::{get_boolean_object, Integer, Object, ReturnValue, FALSE, NULL, TRUE};
+use crate::object::{get_boolean_object, Error, Integer, Object, ReturnValue, FALSE, NULL, TRUE};
 use crate::token::Token;
 use std::fmt;
 
@@ -21,7 +21,13 @@ impl fmt::Display for InfixExpression {
 impl ASTNode for InfixExpression {
     fn evaluate(&self) -> Object {
         let left = self.left.evaluate();
+        if let Object::Error(_) = left {
+            return left;
+        }
         let right = self.right.evaluate();
+        if let Object::Error(_) = right {
+            return right;
+        }
         match left {
             Object::Integer(left_integer) => match right {
                 Object::Integer(right_integer) => match self.operator.as_str() {
@@ -41,18 +47,47 @@ impl ASTNode for InfixExpression {
                     ">" => get_boolean_object(left_integer.value > right_integer.value),
                     "==" => get_boolean_object(left_integer.value == right_integer.value),
                     "!=" => get_boolean_object(left_integer.value != right_integer.value),
-                    _ => NULL,
+                    _ => Object::Error(Error {
+                        message: format!(
+                            "unknown operator: {} {} {}",
+                            left_integer.get_type(),
+                            self.operator,
+                            right_integer.get_type()
+                        ),
+                    }),
                 },
-                _ => NULL,
+                _ => Object::Error(Error {
+                    message: format!(
+                        "type mismatch: {} {} {}",
+                        left_integer.get_type(),
+                        self.operator,
+                        right.get_type()
+                    ),
+                }),
             },
             Object::Boolean(left_boolean) => match right {
                 Object::Boolean(right_boolean) => match self.operator.as_str() {
                     "==" => get_boolean_object(left_boolean.value == right_boolean.value),
                     "!=" => get_boolean_object(left_boolean.value != right_boolean.value),
-                    _ => NULL,
+                    _ => Object::Error(Error {
+                        message: format!(
+                            "unknown operator: {} {} {}",
+                            left_boolean.get_type(),
+                            self.operator,
+                            right_boolean.get_type()
+                        ),
+                    }),
                 },
-                _ => NULL,
+                _ => Object::Error(Error {
+                    message: format!(
+                        "type mismatch: {} {} {}",
+                        left_boolean.get_type(),
+                        self.operator,
+                        right.get_type()
+                    ),
+                }),
             },
+            // TODO: What to do here? panic?
             _ => NULL,
         }
     }
@@ -71,6 +106,9 @@ impl fmt::Display for PrefixExpression {
 impl ASTNode for PrefixExpression {
     fn evaluate(&self) -> Object {
         let right = self.right.evaluate();
+        if let Object::Error(_) = right {
+            return right;
+        }
         match self.operator.as_str() {
             "!" => match right {
                 Object::Boolean(boolean) => get_boolean_object(!boolean.value),
@@ -89,9 +127,13 @@ impl ASTNode for PrefixExpression {
                         value: -integer.value,
                     });
                 }
-                _ => NULL,
+                _ => Object::Error(Error {
+                    message: format!("unknown operator: {}{}", self.operator, right.get_type()),
+                }),
             },
-            _ => todo!(),
+            _ => Object::Error(Error {
+                message: format!("unknown operator: {}{}", self.operator, right.get_type()),
+            }),
         }
     }
 }
@@ -179,6 +221,9 @@ impl ASTNode for IfExpression {
         }
 
         let evaluated_condition = self.condition.evaluate();
+        if let Object::Error(_) = evaluated_condition {
+            return evaluated_condition;
+        }
 
         if is_truthy(evaluated_condition) {
             return self.consequence.evaluate();
@@ -340,8 +385,12 @@ impl fmt::Display for ReturnStatement {
 }
 impl ASTNode for ReturnStatement {
     fn evaluate(&self) -> Object {
+        let evaluated = self.return_value.evaluate();
+        if let Object::Error(_) = evaluated {
+            return evaluated;
+        }
         return Object::ReturnValue(ReturnValue {
-            value: Box::new(self.return_value.evaluate()),
+            value: Box::new(evaluated),
         });
     }
 }
@@ -364,8 +413,14 @@ impl ASTNode for BlockStatement {
         for statement in self.statements.iter() {
             result = Some(statement.evaluate());
 
-            if let Some(Object::ReturnValue(_)) = result {
-                return result.unwrap();
+            match result {
+                Some(Object::ReturnValue(_)) => {
+                    return result.unwrap();
+                }
+                Some(Object::Error(_)) => {
+                    return result.unwrap();
+                }
+                _ => (),
             }
         }
         // TODO: Is there a better way of handling the case
@@ -427,8 +482,14 @@ impl ASTNode for Program {
         for statement in self.statements.iter() {
             result = Some(statement.evaluate());
 
-            if let Some(Object::ReturnValue(return_value)) = result {
-                return *return_value.value;
+            match result {
+                Some(Object::ReturnValue(return_value)) => {
+                    return *return_value.value;
+                }
+                Some(Object::Error(_)) => {
+                    return result.unwrap();
+                }
+                _ => (),
             }
         }
         // TODO: Is there a better way of handling the case

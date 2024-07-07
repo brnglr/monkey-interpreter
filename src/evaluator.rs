@@ -9,7 +9,7 @@ pub fn eval<T: ASTNode>(node: T) -> Object {
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Integer, Object, FALSE, NULL, TRUE};
+    use crate::object::{Error, Integer, Object, FALSE, NULL, TRUE};
     use crate::parser::Parser;
 
     // =========================================================
@@ -336,6 +336,92 @@ mod tests {
         for test in tests.iter() {
             let evaluated = evaluate_input(&test.input);
             assert_eq!(evaluated, test.expected_eval);
+        }
+    }
+
+    #[test]
+    fn test_error_handling() {
+        struct TestData {
+            input: String,
+            expected_error: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "5 + true;".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "type mismatch: INTEGER + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "5 + true; 5;".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "type mismatch: INTEGER + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "-true".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: -BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "true + false;".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "5; true + false; 5".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "if (10 > 1) { true + false; }".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "\
+                    if (10 > 1) {\
+                        if (10 > 1) {\
+                            return true + false;\
+                        }\
+                        return 1;\
+                    }\
+                "
+                .to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "\
+                    if (10 > 1) {\
+                        if (10 > 1) {\
+                            true + false;\
+                            return 1;
+                        }\
+                        return 1;\
+                    }\
+                "
+                .to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+            TestData {
+                input: "if (true + false) {return 1 + true;}".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: BOOLEAN + BOOLEAN".to_string(),
+                }),
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_error);
         }
     }
 }
