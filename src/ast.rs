@@ -1,4 +1,4 @@
-use crate::object::{get_boolean_object, Integer, Object, FALSE, NULL, TRUE};
+use crate::object::{get_boolean_object, Integer, Object, ReturnValue, FALSE, NULL, TRUE};
 use crate::token::Token;
 use std::fmt;
 
@@ -340,7 +340,9 @@ impl fmt::Display for ReturnStatement {
 }
 impl ASTNode for ReturnStatement {
     fn evaluate(&self) -> Object {
-        todo!()
+        return Object::ReturnValue(ReturnValue {
+            value: Box::new(self.return_value.evaluate()),
+        });
     }
 }
 #[derive(Debug, PartialEq)]
@@ -361,6 +363,10 @@ impl ASTNode for BlockStatement {
         let mut result = None;
         for statement in self.statements.iter() {
             result = Some(statement.evaluate());
+
+            if let Some(Object::ReturnValue(_)) = result {
+                return result.unwrap();
+            }
         }
         // TODO: Is there a better way of handling the case
         // of an empty program?
@@ -420,6 +426,10 @@ impl ASTNode for Program {
         let mut result = None;
         for statement in self.statements.iter() {
             result = Some(statement.evaluate());
+
+            if let Some(Object::ReturnValue(return_value)) = result {
+                return *return_value.value;
+            }
         }
         // TODO: Is there a better way of handling the case
         // of an empty program?

@@ -20,6 +20,11 @@ pub struct Boolean {
     pub value: bool,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ReturnValue {
+    pub value: Box<Object>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Null {}
 
@@ -27,5 +32,6 @@ pub struct Null {}
 pub enum Object {
     Integer(Integer),
     Boolean(Boolean),
+    ReturnValue(ReturnValue),
     Null(Null),
 }

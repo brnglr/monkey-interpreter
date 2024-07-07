@@ -295,4 +295,47 @@ mod tests {
             assert_eq!(evaluated, test.expected_eval);
         }
     }
+
+    #[test]
+    fn test_return_statement() {
+        struct TestData {
+            input: String,
+            expected_eval: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "return 10;".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "return 10; 9;".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "return 2 * 5; 9;".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "9; return 2 * 5; 9;".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "\
+                    if (10 > 1) {\
+                        if (10 > 1) {\
+                            return 10;\
+                        }\
+                        return 1;\
+                    }\
+                "
+                .to_string(),
+                expected_eval: build_integer_object(10),
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_eval);
+        }
+    }
 }
