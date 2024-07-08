@@ -676,7 +676,10 @@ return 993322;";
             assert_eq!(
                 *statement,
                 Statement::ExpressionStatement(ExpressionStatement {
-                    token: build_integer_literal_expression(5).get_token().clone(),
+                    token: Token {
+                        token_type: TokenType::Int,
+                        literal: "5".to_string()
+                    },
                     expression: build_integer_literal_expression(5),
                 }),
             );
@@ -702,7 +705,10 @@ return 993322;";
             assert_eq!(
                 *statement,
                 Statement::ExpressionStatement(ExpressionStatement {
-                    token: build_boolean_literal_expression(true).get_token().clone(),
+                    token: Token {
+                        token_type: TokenType::True,
+                        literal: "true".to_string()
+                    },
                     expression: build_boolean_literal_expression(true),
                 })
             );

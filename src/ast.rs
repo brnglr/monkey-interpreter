@@ -150,7 +150,7 @@ impl fmt::Display for BooleanLiteral {
     }
 }
 impl ASTNode for BooleanLiteral {
-    fn evaluate(&self, environment: &mut Environment) -> Object {
+    fn evaluate(&self, _environment: &mut Environment) -> Object {
         get_boolean_object(self.value)
     }
 }
@@ -165,7 +165,7 @@ impl fmt::Display for IntegerLiteral {
     }
 }
 impl ASTNode for IntegerLiteral {
-    fn evaluate(&self, environment: &mut Environment) -> Object {
+    fn evaluate(&self, _environment: &mut Environment) -> Object {
         return Object::Integer(Integer { value: self.value });
     }
 }
@@ -216,7 +216,7 @@ impl ASTNode for IfExpression {
         fn is_truthy(evaluated_condition: Object) -> bool {
             match evaluated_condition {
                 Object::Boolean(boolean) => boolean.value,
-                Object::Null(null) => false,
+                Object::Null(_) => false,
                 Object::Integer(integer) => {
                     match integer.value {
                         // Treat 0 as falsy
@@ -257,7 +257,7 @@ impl fmt::Display for FunctionLiteral {
     }
 }
 impl ASTNode for FunctionLiteral {
-    fn evaluate(&self, environment: &mut Environment) -> Object {
+    fn evaluate(&self, _environment: &mut Environment) -> Object {
         todo!()
     }
 }
@@ -274,7 +274,7 @@ impl fmt::Display for CallExpression {
     }
 }
 impl ASTNode for CallExpression {
-    fn evaluate(&self, environment: &mut Environment) -> Object {
+    fn evaluate(&self, _environment: &mut Environment) -> Object {
         todo!()
     }
 }
@@ -330,20 +330,6 @@ impl ASTNode for Expression {
             Expression::IfExpression(expression) => expression.evaluate(environment),
             Expression::FunctionLiteral(expression) => expression.evaluate(environment),
             Expression::CallExpression(expression) => expression.evaluate(environment),
-        }
-    }
-}
-impl Expression {
-    pub fn get_token(&self) -> &Token {
-        match self {
-            Expression::Identifier(expression) => &expression.token,
-            Expression::IntegerLiteral(expression) => &expression.token,
-            Expression::BooleanLiteral(expression) => &expression.token,
-            Expression::PrefixExpression(expression) => &expression.token,
-            Expression::InfixExpression(expression) => &expression.token,
-            Expression::IfExpression(expression) => &expression.token,
-            Expression::FunctionLiteral(expression) => &expression.token,
-            Expression::CallExpression(expression) => &expression.token,
         }
     }
 }
