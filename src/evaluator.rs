@@ -289,6 +289,10 @@ mod tests {
                 input: "if (0) { 10 } else { 20 }".to_string(),
                 expected_eval: build_integer_object(20),
             },
+            TestData {
+                input: "if (true) {}".to_string(),
+                expected_eval: NULL,
+            },
         ];
 
         for test in tests.iter() {

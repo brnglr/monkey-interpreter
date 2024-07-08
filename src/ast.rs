@@ -89,8 +89,9 @@ impl ASTNode for InfixExpression {
                     ),
                 }),
             },
-            // TODO: What to do here? panic?
-            _ => NULL,
+            _ => Object::Error(Error {
+                message: format!("unknown type: {}", left.get_type()),
+            }),
         }
     }
 }
@@ -420,9 +421,7 @@ impl ASTNode for BlockStatement {
                 _ => (),
             }
         }
-        // TODO: Is there a better way of handling the case
-        // of an empty program?
-        return result.expect("Program evaluated to nothing!");
+        return result.unwrap_or(NULL);
     }
 }
 #[derive(Debug, PartialEq)]
@@ -489,9 +488,7 @@ impl ASTNode for Program {
                 _ => (),
             }
         }
-        // TODO: Is there a better way of handling the case
-        // of an empty program?
-        return result.expect("Program evaluated to nothing!");
+        return result.expect("Program is empty!");
     }
 }
 
