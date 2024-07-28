@@ -1,5 +1,6 @@
 use crate::object::{
-    get_boolean_object, Environment, Error, Integer, Object, ReturnValue, FALSE, NULL, TRUE,
+    get_boolean_object, Environment, Error, Function, Integer, Object, ReturnValue, FALSE, NULL,
+    TRUE,
 };
 use crate::token::Token;
 use std::fmt;
@@ -8,7 +9,7 @@ pub trait ASTNode {
     fn evaluate(&self, environment: &mut Environment) -> Object;
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct InfixExpression {
     pub token: Token,
     pub left: Box<Expression>,
@@ -95,7 +96,7 @@ impl ASTNode for InfixExpression {
         }
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: String,
@@ -140,7 +141,7 @@ impl ASTNode for PrefixExpression {
         }
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BooleanLiteral {
     pub token: Token,
     pub value: bool,
@@ -155,7 +156,7 @@ impl ASTNode for BooleanLiteral {
         get_boolean_object(self.value)
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
@@ -170,7 +171,7 @@ impl ASTNode for IntegerLiteral {
         return Object::Integer(Integer { value: self.value });
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -183,7 +184,6 @@ impl fmt::Display for Identifier {
 impl ASTNode for Identifier {
     fn evaluate(&self, environment: &mut Environment) -> Object {
         return match environment.get(&self.value) {
-            // TODO: Get rid of this clone!
             Some(val) => val.clone(),
             None => Object::Error(Error {
                 message: format!("identifier not found: {}", self.value),
@@ -191,7 +191,7 @@ impl ASTNode for Identifier {
         };
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct IfExpression {
     pub token: Token,
     pub condition: Box<Expression>,
@@ -244,7 +244,7 @@ impl ASTNode for IfExpression {
         }
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct FunctionLiteral {
     pub token: Token,
     pub parameters: Vec<Identifier>,
@@ -258,11 +258,15 @@ impl fmt::Display for FunctionLiteral {
     }
 }
 impl ASTNode for FunctionLiteral {
-    fn evaluate(&self, _environment: &mut Environment) -> Object {
-        todo!()
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        return Object::Function(Function {
+            parameters: self.parameters.clone(),
+            body: self.body.clone(),
+            env: environment.clone(),
+        });
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CallExpression {
     pub token: Token,
     pub function: Box<Expression>,
@@ -275,11 +279,48 @@ impl fmt::Display for CallExpression {
     }
 }
 impl ASTNode for CallExpression {
-    fn evaluate(&self, _environment: &mut Environment) -> Object {
-        todo!()
+    fn evaluate(&self, environment: &mut Environment) -> Object {
+        // evaluate function expression
+        let evaluated_function = self.function.evaluate(environment);
+        let evaluated_function = match evaluated_function {
+            Object::Error(_) => {
+                return evaluated_function;
+            }
+            Object::Function(function) => function,
+            _ => {
+                return Object::Error(Error {
+                    message: "Expected to evaluate a function when evaluating a call expression"
+                        .to_string(),
+                });
+            }
+        };
+
+        // Evaluate arguments, left to right
+        let mut args = vec![];
+        for argument in self.arguments.iter() {
+            let evaluated_arg = argument.evaluate(environment);
+            if let Object::Error(_) = evaluated_arg {
+                return evaluated_arg;
+            }
+            args.push(evaluated_arg);
+        }
+
+        // set up function environment
+        // TODO: Instead of copying the entire env, implement copy-on-write semantics.
+        let mut function_env = evaluated_function.env.clone();
+        for (parameter, argument) in evaluated_function.parameters.iter().zip(args.iter()) {
+            function_env.set(parameter.value.clone(), argument.clone());
+        }
+
+        // evaluate function body
+        let evaluated_body = evaluated_function.body.evaluate(&mut function_env);
+        return match evaluated_body {
+            Object::ReturnValue(return_value) => *return_value.value,
+            _ => evaluated_body,
+        };
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
@@ -335,7 +376,7 @@ impl ASTNode for Expression {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: Expression,
@@ -350,7 +391,7 @@ impl ASTNode for ExpressionStatement {
         return self.expression.evaluate(environment);
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -371,7 +412,7 @@ impl ASTNode for LetStatement {
         return environment.set(self.name.value.clone(), evaluated);
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: Expression,
@@ -392,7 +433,7 @@ impl ASTNode for ReturnStatement {
         });
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BlockStatement {
     pub token: Token,
     pub statements: Vec<Statement>,
@@ -424,7 +465,7 @@ impl ASTNode for BlockStatement {
         return result.unwrap_or(NULL);
     }
 }
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),

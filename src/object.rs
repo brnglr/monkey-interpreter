@@ -1,4 +1,6 @@
+use crate::ast::{BlockStatement, Identifier};
 use std::collections::HashMap;
+use std::fmt;
 
 pub const TRUE: Object = Object::Boolean(Boolean { value: true });
 pub const FALSE: Object = Object::Boolean(Boolean { value: false });
@@ -21,6 +23,11 @@ impl Integer {
         "INTEGER"
     }
 }
+impl fmt::Display for Integer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Boolean {
@@ -29,6 +36,11 @@ pub struct Boolean {
 impl Boolean {
     pub fn get_type(self) -> &'static str {
         "BOOLEAN"
+    }
+}
+impl fmt::Display for Boolean {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
@@ -41,6 +53,29 @@ impl ReturnValue {
         "RETURN_VALUE"
     }
 }
+impl fmt::Display for ReturnValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Function {
+    pub parameters: Vec<Identifier>,
+    pub body: BlockStatement,
+    pub env: Environment,
+}
+impl Function {
+    pub fn get_type(self) -> &'static str {
+        "FUNCTION"
+    }
+}
+impl fmt::Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let params: Vec<String> = self.parameters.iter().map(|x| x.to_string()).collect();
+        write!(f, "fn({}) {{{}}}", params.join(","), self.body)
+    }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error {
@@ -51,6 +86,11 @@ impl Error {
         "ERROR"
     }
 }
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "ERROR: {}", self.message)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Null {}
@@ -59,13 +99,18 @@ impl Null {
         "NULL"
     }
 }
+impl fmt::Display for Null {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "null")
+    }
+}
 
-// TODO: Get rid of this Clone + Clone in all enum variants!
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     Integer(Integer),
     Boolean(Boolean),
     ReturnValue(ReturnValue),
+    Function(Function),
     Error(Error),
     Null(Null),
 }
@@ -75,12 +120,26 @@ impl Object {
             Object::Integer(integer) => integer.get_type(),
             Object::Boolean(boolean) => boolean.get_type(),
             Object::ReturnValue(return_value) => return_value.get_type(),
+            Object::Function(function) => function.get_type(),
             Object::Error(error) => error.get_type(),
             Object::Null(null) => null.get_type(),
         }
     }
 }
+impl fmt::Display for Object {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Object::Integer(integer) => write!(f, "{}", integer),
+            Object::Boolean(boolean) => write!(f, "{}", boolean),
+            Object::ReturnValue(return_value) => write!(f, "{}", return_value),
+            Object::Function(function) => write!(f, "{}", function),
+            Object::Error(error) => write!(f, "{}", error),
+            Object::Null(null) => write!(f, "{}", null),
+        }
+    }
+}
 
+#[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
     pub store: HashMap<String, Object>,
 }

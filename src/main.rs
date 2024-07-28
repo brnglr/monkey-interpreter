@@ -38,6 +38,6 @@ fn main() {
         }
 
         let evaluated = eval(program, &mut env);
-        println!("{:?}", evaluated);
+        println!("{}", evaluated);
     }
 }

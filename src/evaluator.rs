@@ -376,6 +376,90 @@ mod tests {
     }
 
     #[test]
+    fn test_functions() {
+        struct TestData {
+            input: String,
+            expected_parameters: Vec<String>,
+            expected_body: String,
+        }
+        let tests = vec![TestData {
+            input: "fn(x) { x + 2; };".to_string(),
+            expected_parameters: vec!["x".to_string()],
+            expected_body: "(x + 2)".to_string(),
+        }];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            match evaluated {
+                Object::Function(function) => {
+                    assert_eq!(function.parameters.len(), test.expected_parameters.len());
+                    for (param, expected_param) in function
+                        .parameters
+                        .iter()
+                        .zip(test.expected_parameters.iter())
+                    {
+                        assert_eq!(&param.value, expected_param);
+                    }
+                    assert_eq!(format!("{}", function.body), test.expected_body);
+                }
+                _ => panic!("Expected to evaluate a function!"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_function_application() {
+        struct TestData {
+            input: String,
+            expected_eval: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "let identity = fn(x) { x; }; identity(5);".to_string(),
+                expected_eval: build_integer_object(5),
+            },
+            TestData {
+                input: "let identity = fn(x) { return x; }; identity(5);".to_string(),
+                expected_eval: build_integer_object(5),
+            },
+            TestData {
+                input: "let double = fn(x) { x * 2; }; double(5);".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "let add = fn(x, y) { x + y; }; add(5, 5);".to_string(),
+                expected_eval: build_integer_object(10),
+            },
+            TestData {
+                input: "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));".to_string(),
+                expected_eval: build_integer_object(20),
+            },
+            TestData {
+                input: "fn(x) { x; }(5)".to_string(),
+                expected_eval: build_integer_object(5),
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_eval);
+        }
+    }
+
+    #[test]
+    fn test_closures() {
+        let input = "\
+            let newAdder = fn(x) {\n\
+                fn(y) { x + y };\n\
+            };\n\
+            let addTwo = newAdder(2);\n\
+            addTwo(2);"
+            .to_string();
+        let evaluated = evaluate_input(&input);
+        assert_eq!(evaluated, build_integer_object(4));
+    }
+
+    #[test]
     fn test_error_handling() {
         struct TestData {
             input: String,
