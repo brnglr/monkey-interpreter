@@ -16,7 +16,7 @@ const PROMPT: &str = ">>";
 
 fn main() {
     let user = env::var("USER").unwrap();
-    let mut env = Environment::new();
+    let env = Environment::new();
     println!("Welcome {user}!");
     println!("This is the Monkey programming language REPL.\n");
 
@@ -37,7 +37,7 @@ fn main() {
             continue;
         }
 
-        let evaluated = eval(program, &mut env);
+        let evaluated = eval(program, env.clone());
         println!("{}", evaluated);
     }
 }

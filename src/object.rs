@@ -1,6 +1,8 @@
 use crate::ast::{BlockStatement, Identifier};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::rc::Rc;
 
 pub const TRUE: Object = Object::Boolean(Boolean { value: true });
 pub const FALSE: Object = Object::Boolean(Boolean { value: false });
@@ -63,7 +65,7 @@ impl fmt::Display for ReturnValue {
 pub struct Function {
     pub parameters: Vec<Identifier>,
     pub body: BlockStatement,
-    pub env: Environment,
+    pub env: Rc<RefCell<Environment>>,
 }
 impl Function {
     pub fn get_type(self) -> &'static str {
@@ -142,16 +144,32 @@ impl fmt::Display for Object {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
     pub store: HashMap<String, Object>,
+    pub outer: Option<Rc<RefCell<Environment>>>,
 }
 impl Environment {
-    pub fn new() -> Environment {
-        return Environment {
+    pub fn new() -> Rc<RefCell<Environment>> {
+        return Rc::new(RefCell::new(Environment {
             store: HashMap::new(),
-        };
+            outer: None,
+        }));
     }
 
-    pub fn get(&self, name: &String) -> Option<&Object> {
-        return self.store.get(name);
+    pub fn new_enclosing_environment(outer: Rc<RefCell<Environment>>) -> Rc<RefCell<Environment>> {
+        return Rc::new(RefCell::new(Environment {
+            store: HashMap::new(),
+            outer: Some(outer),
+        }));
+    }
+
+    pub fn get(&self, name: &String) -> Option<Object> {
+        if self.store.contains_key(name) {
+            return self.store.get(name).cloned();
+        } else {
+            return self
+                .outer
+                .as_ref()
+                .and_then(|outer_env| outer_env.borrow().get(name));
+        }
     }
 
     pub fn set(&mut self, name: String, object: Object) -> Object {

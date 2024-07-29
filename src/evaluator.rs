@@ -1,7 +1,9 @@
 use crate::ast::ASTNode;
 use crate::object::{Environment, Object};
+use std::cell::RefCell;
+use std::rc::Rc;
 
-pub fn eval<T: ASTNode>(node: T, environment: &mut Environment) -> Object {
+pub fn eval<T: ASTNode>(node: T, environment: Rc<RefCell<Environment>>) -> Object {
     return node.evaluate(environment);
 }
 
@@ -20,9 +22,9 @@ mod tests {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
-        let mut env = Environment::new();
+        let env = Environment::new();
 
-        return eval(program, &mut env);
+        return eval(program, env);
     }
 
     fn build_integer_object(value: i64) -> Object {
@@ -457,6 +459,15 @@ mod tests {
             .to_string();
         let evaluated = evaluate_input(&input);
         assert_eq!(evaluated, build_integer_object(4));
+    }
+
+    #[test]
+    fn test_recursive_function() {
+        let input =
+            "let counter = fn(x) {if (x > 5) {return true;} else {return counter(x+1)}};counter(0)"
+                .to_string();
+        let evaluated = evaluate_input(&input);
+        assert_eq!(evaluated, TRUE);
     }
 
     #[test]
