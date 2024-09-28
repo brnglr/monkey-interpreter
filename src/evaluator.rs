@@ -3,7 +3,7 @@ use crate::object::{Environment, Object};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub fn eval<T: ASTNode>(node: T, environment: Rc<RefCell<Environment>>) -> Object {
+pub fn eval<T: ASTNode>(node: T, environment: &Rc<RefCell<Environment>>) -> Object {
     return node.evaluate(environment);
 }
 
@@ -24,7 +24,7 @@ mod tests {
         let program = parser.parse_program();
         let env = Environment::new();
 
-        return eval(program, env);
+        return eval(program, &env);
     }
 
     fn build_integer_object(value: i64) -> Object {

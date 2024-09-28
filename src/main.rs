@@ -37,7 +37,7 @@ fn main() {
             continue;
         }
 
-        let evaluated = eval(program, env.clone());
+        let evaluated = eval(program, &env);
         println!("{}", evaluated);
     }
 }

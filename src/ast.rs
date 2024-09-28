@@ -8,7 +8,7 @@ use std::fmt;
 use std::rc::Rc;
 
 pub trait ASTNode {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object;
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object;
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -24,12 +24,12 @@ impl fmt::Display for InfixExpression {
     }
 }
 impl ASTNode for InfixExpression {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
-        let left = self.left.evaluate(environment.clone());
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        let left = self.left.evaluate(environment);
         if let Object::Error(_) = left {
             return left;
         }
-        let right = self.right.evaluate(environment.clone());
+        let right = self.right.evaluate(environment);
         if let Object::Error(_) = right {
             return right;
         }
@@ -110,7 +110,7 @@ impl fmt::Display for PrefixExpression {
     }
 }
 impl ASTNode for PrefixExpression {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         let right = self.right.evaluate(environment);
         if let Object::Error(_) = right {
             return right;
@@ -154,7 +154,7 @@ impl fmt::Display for BooleanLiteral {
     }
 }
 impl ASTNode for BooleanLiteral {
-    fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, _environment: &Rc<RefCell<Environment>>) -> Object {
         get_boolean_object(self.value)
     }
 }
@@ -169,7 +169,7 @@ impl fmt::Display for IntegerLiteral {
     }
 }
 impl ASTNode for IntegerLiteral {
-    fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, _environment: &Rc<RefCell<Environment>>) -> Object {
         return Object::Integer(Integer { value: self.value });
     }
 }
@@ -184,7 +184,7 @@ impl fmt::Display for Identifier {
     }
 }
 impl ASTNode for Identifier {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         return match environment.borrow().get(&self.value) {
             Some(val) => val.clone(),
             None => Object::Error(Error {
@@ -215,7 +215,7 @@ impl fmt::Display for IfExpression {
     }
 }
 impl ASTNode for IfExpression {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         fn is_truthy(evaluated_condition: Object) -> bool {
             match evaluated_condition {
                 Object::Boolean(boolean) => boolean.value,
@@ -231,17 +231,17 @@ impl ASTNode for IfExpression {
             }
         }
 
-        let evaluated_condition = self.condition.evaluate(environment.clone());
+        let evaluated_condition = self.condition.evaluate(environment);
         if let Object::Error(_) = evaluated_condition {
             return evaluated_condition;
         }
 
         if is_truthy(evaluated_condition) {
-            return self.consequence.evaluate(environment.clone());
+            return self.consequence.evaluate(environment);
         }
 
         match &self.alternative {
-            Some(alternative) => alternative.evaluate(environment.clone()),
+            Some(alternative) => alternative.evaluate(environment),
             None => NULL,
         }
     }
@@ -260,7 +260,7 @@ impl fmt::Display for FunctionLiteral {
     }
 }
 impl ASTNode for FunctionLiteral {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         return Object::Function(Function {
             parameters: self.parameters.clone(),
             body: self.body.clone(),
@@ -281,9 +281,9 @@ impl fmt::Display for CallExpression {
     }
 }
 impl ASTNode for CallExpression {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         // evaluate function expression
-        let evaluated_function = self.function.evaluate(environment.clone());
+        let evaluated_function = self.function.evaluate(environment);
         let evaluated_function = match evaluated_function {
             Object::Error(_) => {
                 return evaluated_function;
@@ -300,7 +300,7 @@ impl ASTNode for CallExpression {
         // Evaluate arguments, left to right
         let mut args = vec![];
         for argument in self.arguments.iter() {
-            let evaluated_arg = argument.evaluate(environment.clone());
+            let evaluated_arg = argument.evaluate(environment);
             if let Object::Error(_) = evaluated_arg {
                 return evaluated_arg;
             }
@@ -316,7 +316,7 @@ impl ASTNode for CallExpression {
         }
 
         // evaluate function body
-        let evaluated_body = evaluated_function.body.evaluate(function_env.clone());
+        let evaluated_body = evaluated_function.body.evaluate(&function_env);
         return match evaluated_body {
             Object::ReturnValue(return_value) => *return_value.value,
             _ => evaluated_body,
@@ -365,7 +365,7 @@ impl fmt::Display for Expression {
     }
 }
 impl ASTNode for Expression {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         match self {
             Expression::Identifier(expression) => expression.evaluate(environment),
             Expression::IntegerLiteral(expression) => expression.evaluate(environment),
@@ -390,8 +390,8 @@ impl fmt::Display for ExpressionStatement {
     }
 }
 impl ASTNode for ExpressionStatement {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
-        return self.expression.evaluate(environment.clone());
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        return self.expression.evaluate(environment);
     }
 }
 #[derive(Debug, PartialEq, Clone)]
@@ -406,8 +406,8 @@ impl fmt::Display for LetStatement {
     }
 }
 impl ASTNode for LetStatement {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
-        let evaluated = self.value.evaluate(environment.clone());
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        let evaluated = self.value.evaluate(environment);
         if let Object::Error(_) = evaluated {
             return evaluated;
         }
@@ -428,8 +428,8 @@ impl fmt::Display for ReturnStatement {
     }
 }
 impl ASTNode for ReturnStatement {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
-        let evaluated = self.return_value.evaluate(environment.clone());
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        let evaluated = self.return_value.evaluate(environment);
         if let Object::Error(_) = evaluated {
             return evaluated;
         }
@@ -452,10 +452,10 @@ impl fmt::Display for BlockStatement {
     }
 }
 impl ASTNode for BlockStatement {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         let mut result = None;
         for statement in self.statements.iter() {
-            result = Some(statement.evaluate(environment.clone()));
+            result = Some(statement.evaluate(environment));
 
             match result {
                 Some(Object::ReturnValue(_)) => {
@@ -496,7 +496,7 @@ impl fmt::Display for Statement {
     }
 }
 impl ASTNode for Statement {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         match self {
             Statement::LetStatement(statement) => statement.evaluate(environment),
             Statement::ReturnStatement(statement) => statement.evaluate(environment),
@@ -519,10 +519,10 @@ impl fmt::Display for Program {
     }
 }
 impl ASTNode for Program {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Object {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         let mut result = None;
         for statement in self.statements.iter() {
-            result = Some(statement.evaluate(environment.clone()));
+            result = Some(statement.evaluate(environment));
 
             match result {
                 Some(Object::ReturnValue(return_value)) => {
