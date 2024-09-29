@@ -1,7 +1,7 @@
 use crate::ast::{
     BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
     FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-    PrefixExpression, Program, ReturnStatement, Statement,
+    PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
 };
 use crate::lexer::Lexer;
 use crate::token::{self, Token, TokenType};
@@ -74,6 +74,9 @@ impl Parser {
         parser
             .prefix_parse_fns
             .insert(TokenType::Function, Parser::parse_function_literal);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::String, Parser::parse_string_literal);
 
         // Register infix parse functions
         parser
@@ -275,6 +278,13 @@ impl Parser {
         }
     }
 
+    fn parse_string_literal(&mut self) -> Expression {
+        return Expression::StringLiteral(StringLiteral {
+            token: self.current_token.clone(),
+            value: self.current_token.literal.clone(),
+        });
+    }
+
     fn parse_boolean_literal(&mut self) -> Expression {
         return Expression::BooleanLiteral(BooleanLiteral {
             token: self.current_token.clone(),
@@ -428,7 +438,7 @@ mod tests {
     use crate::ast::{
         BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
         FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-        ReturnStatement, Statement,
+        ReturnStatement, Statement, StringLiteral,
     };
     use crate::lexer::Lexer;
     use crate::parser::Parser;
@@ -486,6 +496,16 @@ mod tests {
             token: Token {
                 token_type: TokenType::Int,
                 literal: value.to_string(),
+            },
+            value: value,
+        });
+    }
+
+    fn build_string_literal_expression(value: String) -> Expression {
+        return Expression::StringLiteral(StringLiteral {
+            token: Token {
+                token_type: TokenType::String,
+                literal: value.clone(),
             },
             value: value,
         });
@@ -681,6 +701,35 @@ return 993322;";
                         literal: "5".to_string()
                     },
                     expression: build_integer_literal_expression(5),
+                }),
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = "\"hello world\";";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        for statement in program.statements.iter() {
+            assert_eq!(
+                *statement,
+                Statement::ExpressionStatement(ExpressionStatement {
+                    token: Token {
+                        token_type: TokenType::String,
+                        literal: "hello world".to_string()
+                    },
+                    expression: build_string_literal_expression("hello world".to_string()),
                 }),
             );
         }

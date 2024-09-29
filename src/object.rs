@@ -32,6 +32,21 @@ impl fmt::Display for Integer {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct String {
+    pub value: std::string::String,
+}
+impl String {
+    pub fn get_type(self) -> &'static str {
+        "STRING"
+    }
+}
+impl fmt::Display for String {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Boolean {
     pub value: bool,
 }
@@ -74,14 +89,15 @@ impl Function {
 }
 impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let params: Vec<String> = self.parameters.iter().map(|x| x.to_string()).collect();
+        let params: Vec<std::string::String> =
+            self.parameters.iter().map(|x| x.to_string()).collect();
         write!(f, "fn({}) {{{}}}", params.join(","), self.body)
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error {
-    pub message: String,
+    pub message: std::string::String,
 }
 impl Error {
     pub fn get_type(self) -> &'static str {
@@ -110,6 +126,7 @@ impl fmt::Display for Null {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
     Integer(Integer),
+    String(String),
     Boolean(Boolean),
     ReturnValue(ReturnValue),
     Function(Function),
@@ -120,6 +137,7 @@ impl Object {
     pub fn get_type(self) -> &'static str {
         match self {
             Object::Integer(integer) => integer.get_type(),
+            Object::String(string) => string.get_type(),
             Object::Boolean(boolean) => boolean.get_type(),
             Object::ReturnValue(return_value) => return_value.get_type(),
             Object::Function(function) => function.get_type(),
@@ -132,6 +150,7 @@ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Object::Integer(integer) => write!(f, "{}", integer),
+            Object::String(string) => write!(f, "{}", string),
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::ReturnValue(return_value) => write!(f, "{}", return_value),
             Object::Function(function) => write!(f, "{}", function),
@@ -143,7 +162,7 @@ impl fmt::Display for Object {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Environment {
-    pub store: HashMap<String, Object>,
+    pub store: HashMap<std::string::String, Object>,
     pub outer: Option<Rc<RefCell<Environment>>>,
 }
 impl Environment {
@@ -161,7 +180,7 @@ impl Environment {
         }));
     }
 
-    pub fn get(&self, name: &String) -> Option<Object> {
+    pub fn get(&self, name: &std::string::String) -> Option<Object> {
         if self.store.contains_key(name) {
             return self.store.get(name).cloned();
         } else {
@@ -172,7 +191,7 @@ impl Environment {
         }
     }
 
-    pub fn set(&mut self, name: String, object: Object) -> Object {
+    pub fn set(&mut self, name: std::string::String, object: Object) -> Object {
         self.store.insert(name, object.clone());
         return object;
     }

@@ -106,6 +106,10 @@ impl Lexer {
                 token_type: TokenType::Rbrace,
                 literal: "}".to_string(),
             },
+            b'"' => Token {
+                token_type: TokenType::String,
+                literal: self.read_string(),
+            },
             0 => Token {
                 token_type: TokenType::Eof,
                 literal: "".to_string(),
@@ -173,6 +177,18 @@ impl Lexer {
         self.read_position += 1;
     }
 
+    fn read_string(&mut self) -> String {
+        let initial_position = self.position + 1;
+        loop {
+            self.read_char();
+            if self.current_char == b'"' || self.current_char == 0 {
+                break;
+            }
+        }
+        return String::from_utf8(self.input[initial_position..self.position].to_vec())
+            .expect("String was not valid UTF-8");
+    }
+
     fn peek_char(&mut self) -> u8 {
         if self.read_position >= self.input.len() {
             return 0;
@@ -200,7 +216,7 @@ mod tests {
 let ten = 10;
 
 let add = fn(x, y) {
-x + y;
+    x + y;
 };
 
 let result = add(five, ten);
@@ -215,6 +231,8 @@ return false;
 
 10 == 10;
 10 != 9;
+\"foobar\"
+\"foo bar\"
 ";
         let expected_tokens = vec![
             Token {
@@ -508,6 +526,14 @@ return false;
             Token {
                 token_type: TokenType::Semicolon,
                 literal: ";".to_string(),
+            },
+            Token {
+                token_type: TokenType::String,
+                literal: "foobar".to_string(),
+            },
+            Token {
+                token_type: TokenType::String,
+                literal: "foo bar".to_string(),
             },
             Token {
                 token_type: TokenType::Eof,

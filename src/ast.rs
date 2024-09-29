@@ -1,6 +1,6 @@
 use crate::object::{
-    get_boolean_object, Environment, Error, Function, Integer, Object, ReturnValue, FALSE, NULL,
-    TRUE,
+    get_boolean_object, Environment, Error, Function, Integer, Object, ReturnValue, String, FALSE,
+    NULL, TRUE,
 };
 use crate::token::Token;
 use std::cell::RefCell;
@@ -15,7 +15,7 @@ pub trait ASTNode {
 pub struct InfixExpression {
     pub token: Token,
     pub left: Box<Expression>,
-    pub operator: String,
+    pub operator: std::string::String,
     pub right: Box<Expression>,
 }
 impl fmt::Display for InfixExpression {
@@ -92,6 +92,29 @@ impl ASTNode for InfixExpression {
                     ),
                 }),
             },
+            Object::String(left_string) => match right {
+                Object::String(right_string) => match self.operator.as_str() {
+                    "+" => Object::String(String {
+                        value: left_string.value + &right_string.value,
+                    }),
+                    _ => Object::Error(Error {
+                        message: format!(
+                            "unknown operator: {} {} {}",
+                            left_string.get_type(),
+                            self.operator,
+                            right_string.get_type(),
+                        ),
+                    }),
+                },
+                _ => Object::Error(Error {
+                    message: format!(
+                        "type mismatch: {} {} {}",
+                        left_string.get_type(),
+                        self.operator,
+                        right.get_type(),
+                    ),
+                }),
+            },
             _ => Object::Error(Error {
                 message: format!("unknown type: {}", left.get_type()),
             }),
@@ -101,7 +124,7 @@ impl ASTNode for InfixExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct PrefixExpression {
     pub token: Token,
-    pub operator: String,
+    pub operator: std::string::String,
     pub right: Box<Expression>,
 }
 impl fmt::Display for PrefixExpression {
@@ -174,9 +197,26 @@ impl ASTNode for IntegerLiteral {
     }
 }
 #[derive(Debug, PartialEq, Clone)]
+pub struct StringLiteral {
+    pub token: Token,
+    pub value: std::string::String,
+}
+impl fmt::Display for StringLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.value)
+    }
+}
+impl ASTNode for StringLiteral {
+    fn evaluate(&self, _environment: &Rc<RefCell<Environment>>) -> Object {
+        return Object::String(String {
+            value: self.value.clone(),
+        });
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub token: Token,
-    pub value: String,
+    pub value: std::string::String,
 }
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -254,7 +294,7 @@ pub struct FunctionLiteral {
 }
 impl fmt::Display for FunctionLiteral {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string_parameters: Vec<String> =
+        let string_parameters: Vec<std::string::String> =
             self.parameters.iter().map(|x| x.to_string()).collect();
         write!(f, "fn ({}) {{{}}}", string_parameters.join(", "), self.body)
     }
@@ -276,7 +316,8 @@ pub struct CallExpression {
 }
 impl fmt::Display for CallExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string_arguments: Vec<String> = self.arguments.iter().map(|x| x.to_string()).collect();
+        let string_arguments: Vec<std::string::String> =
+            self.arguments.iter().map(|x| x.to_string()).collect();
         write!(f, "{}({})", self.function, string_arguments.join(", "))
     }
 }
@@ -327,6 +368,7 @@ impl ASTNode for CallExpression {
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
+    StringLiteral(StringLiteral),
     BooleanLiteral(BooleanLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
@@ -341,6 +383,9 @@ impl fmt::Display for Expression {
                 write!(f, "{}", expression)
             }
             Expression::IntegerLiteral(expression) => {
+                write!(f, "{}", expression)
+            }
+            Expression::StringLiteral(expression) => {
                 write!(f, "{}", expression)
             }
             Expression::BooleanLiteral(expression) => {
@@ -369,6 +414,7 @@ impl ASTNode for Expression {
         match self {
             Expression::Identifier(expression) => expression.evaluate(environment),
             Expression::IntegerLiteral(expression) => expression.evaluate(environment),
+            Expression::StringLiteral(expression) => expression.evaluate(environment),
             Expression::BooleanLiteral(expression) => expression.evaluate(environment),
             Expression::PrefixExpression(expression) => expression.evaluate(environment),
             Expression::InfixExpression(expression) => expression.evaluate(environment),

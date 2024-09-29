@@ -11,14 +11,14 @@ pub fn eval<T: ASTNode>(node: T, environment: &Rc<RefCell<Environment>>) -> Obje
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Environment, Error, Integer, Object, FALSE, NULL, TRUE};
+    use crate::object::{Environment, Error, Integer, Object, String, FALSE, NULL, TRUE};
     use crate::parser::Parser;
 
     // =========================================================
     // Helper functions for testing
     // =========================================================
 
-    fn evaluate_input(input: &String) -> Object {
+    fn evaluate_input(input: &std::string::String) -> Object {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
@@ -31,6 +31,12 @@ mod tests {
         return Object::Integer(Integer { value: value });
     }
 
+    fn build_string_object(value: &str) -> Object {
+        return Object::String(String {
+            value: value.to_string(),
+        });
+    }
+
     // =========================================================
     // Tests
     // =========================================================
@@ -38,7 +44,7 @@ mod tests {
     #[test]
     fn test_eval_integer_expression() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -113,7 +119,7 @@ mod tests {
     #[test]
     fn test_eval_boolean_expression() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -204,7 +210,7 @@ mod tests {
     #[test]
     fn test_bang_operator() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -255,7 +261,7 @@ mod tests {
     #[test]
     fn test_if_else_expression() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -306,7 +312,7 @@ mod tests {
     #[test]
     fn test_return_statement() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -349,7 +355,7 @@ mod tests {
     #[test]
     fn test_let_statements() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -380,9 +386,9 @@ mod tests {
     #[test]
     fn test_functions() {
         struct TestData {
-            input: String,
-            expected_parameters: Vec<String>,
-            expected_body: String,
+            input: std::string::String,
+            expected_parameters: Vec<std::string::String>,
+            expected_body: std::string::String,
         }
         let tests = vec![TestData {
             input: "fn(x) { x + 2; };".to_string(),
@@ -412,7 +418,7 @@ mod tests {
     #[test]
     fn test_function_application() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_eval: Object,
         }
         let tests = vec![
@@ -471,9 +477,23 @@ mod tests {
     }
 
     #[test]
+    fn test_string_literal() {
+        let input = "\"Hello World!\"".to_string();
+        let evaluated = evaluate_input(&input);
+        assert_eq!(evaluated, build_string_object("Hello World!"));
+    }
+
+    #[test]
+    fn test_string_concatenation() {
+        let input = "\"Hello\" + \" \" + \"World!\"".to_string();
+        let evaluated = evaluate_input(&input);
+        assert_eq!(evaluated, build_string_object("Hello World!"));
+    }
+
+    #[test]
     fn test_error_handling() {
         struct TestData {
-            input: String,
+            input: std::string::String,
             expected_error: Object,
         }
         let tests = vec![
@@ -552,6 +572,12 @@ mod tests {
                 input: "foobar".to_string(),
                 expected_error: Object::Error(Error {
                     message: "identifier not found: foobar".to_string(),
+                }),
+            },
+            TestData {
+                input: "\"Hello\" - \"World\"".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unknown operator: STRING - STRING".to_string(),
                 }),
             },
         ];
