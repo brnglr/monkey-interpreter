@@ -491,6 +491,45 @@ mod tests {
     }
 
     #[test]
+    fn test_builtin_functions() {
+        struct TestData {
+            input: std::string::String,
+            expected_output: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "len(\"\")".to_string(),
+                expected_output: build_integer_object(0),
+            },
+            TestData {
+                input: "len(\"four\")".to_string(),
+                expected_output: build_integer_object(4),
+            },
+            TestData {
+                input: "len(\"hello world\")".to_string(),
+                expected_output: build_integer_object(11),
+            },
+            TestData {
+                input: "len(1)".to_string(),
+                expected_output: Object::Error(Error {
+                    message: "argument to `len` not supported, got INTEGER".to_string(),
+                }),
+            },
+            TestData {
+                input: "len(\"one\", \"two\")".to_string(),
+                expected_output: Object::Error(Error {
+                    message: "wrong number of arguments. got=2, want=1".to_string(),
+                }),
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_output);
+        }
+    }
+
+    #[test]
     fn test_error_handling() {
         struct TestData {
             input: std::string::String,

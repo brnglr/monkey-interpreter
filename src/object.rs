@@ -21,7 +21,7 @@ pub struct Integer {
     pub value: i64,
 }
 impl Integer {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "INTEGER"
     }
 }
@@ -36,7 +36,7 @@ pub struct String {
     pub value: std::string::String,
 }
 impl String {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "STRING"
     }
 }
@@ -51,7 +51,7 @@ pub struct Boolean {
     pub value: bool,
 }
 impl Boolean {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "BOOLEAN"
     }
 }
@@ -66,7 +66,7 @@ pub struct ReturnValue {
     pub value: Box<Object>,
 }
 impl ReturnValue {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "RETURN_VALUE"
     }
 }
@@ -83,7 +83,7 @@ pub struct Function {
     pub env: Rc<RefCell<Environment>>,
 }
 impl Function {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "FUNCTION"
     }
 }
@@ -96,11 +96,26 @@ impl fmt::Display for Function {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct BuiltIn {
+    pub builtin_fn: fn(Vec<Object>) -> Object,
+}
+impl BuiltIn {
+    pub fn get_type(&self) -> &'static str {
+        "BUILTIN"
+    }
+}
+impl fmt::Display for BuiltIn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "builtin function")
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct Error {
     pub message: std::string::String,
 }
 impl Error {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "ERROR"
     }
 }
@@ -113,7 +128,7 @@ impl fmt::Display for Error {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Null {}
 impl Null {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         "NULL"
     }
 }
@@ -130,17 +145,19 @@ pub enum Object {
     Boolean(Boolean),
     ReturnValue(ReturnValue),
     Function(Function),
+    BuiltIn(BuiltIn),
     Error(Error),
     Null(Null),
 }
 impl Object {
-    pub fn get_type(self) -> &'static str {
+    pub fn get_type(&self) -> &'static str {
         match self {
             Object::Integer(integer) => integer.get_type(),
             Object::String(string) => string.get_type(),
             Object::Boolean(boolean) => boolean.get_type(),
             Object::ReturnValue(return_value) => return_value.get_type(),
             Object::Function(function) => function.get_type(),
+            Object::BuiltIn(built_in) => built_in.get_type(),
             Object::Error(error) => error.get_type(),
             Object::Null(null) => null.get_type(),
         }
@@ -154,6 +171,7 @@ impl fmt::Display for Object {
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::ReturnValue(return_value) => write!(f, "{}", return_value),
             Object::Function(function) => write!(f, "{}", function),
+            Object::BuiltIn(built_in) => write!(f, "{}", built_in),
             Object::Error(error) => write!(f, "{}", error),
             Object::Null(null) => write!(f, "{}", null),
         }

@@ -1,3 +1,4 @@
+use crate::builtins::get_builtin;
 use crate::object::{
     get_boolean_object, Environment, Error, Function, Integer, Object, ReturnValue, String, FALSE,
     NULL, TRUE,
@@ -227,9 +228,15 @@ impl ASTNode for Identifier {
     fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         return match environment.borrow().get(&self.value) {
             Some(val) => val.clone(),
-            None => Object::Error(Error {
-                message: format!("identifier not found: {}", self.value),
-            }),
+            None => {
+                if let Some(builtin) = get_builtin(&self.value) {
+                    return builtin;
+                } else {
+                    return Object::Error(Error {
+                        message: format!("identifier not found: {}", self.value),
+                    });
+                }
+            }
         };
     }
 }
@@ -325,18 +332,6 @@ impl ASTNode for CallExpression {
     fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
         // evaluate function expression
         let evaluated_function = self.function.evaluate(environment);
-        let evaluated_function = match evaluated_function {
-            Object::Error(_) => {
-                return evaluated_function;
-            }
-            Object::Function(function) => function,
-            _ => {
-                return Object::Error(Error {
-                    message: "Expected to evaluate a function when evaluating a call expression"
-                        .to_string(),
-                });
-            }
-        };
 
         // Evaluate arguments, left to right
         let mut args = vec![];
@@ -347,6 +342,22 @@ impl ASTNode for CallExpression {
             }
             args.push(evaluated_arg);
         }
+
+        let evaluated_function = match evaluated_function {
+            Object::Error(_) => {
+                return evaluated_function;
+            }
+            Object::Function(function) => function,
+            Object::BuiltIn(builtin) => {
+                return (builtin.builtin_fn)(args);
+            }
+            _ => {
+                return Object::Error(Error {
+                    message: "Expected to evaluate a function when evaluating a call expression"
+                        .to_string(),
+                });
+            }
+        };
 
         // set up function environment
         let function_env = Environment::new_enclosing_environment(evaluated_function.env.clone());

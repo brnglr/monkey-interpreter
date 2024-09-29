@@ -6,6 +6,7 @@ use std::env;
 use std::io::Write;
 
 mod ast;
+mod builtins;
 mod evaluator;
 mod lexer;
 mod object;
