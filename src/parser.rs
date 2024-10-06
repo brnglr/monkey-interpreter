@@ -1,5 +1,5 @@
 use crate::ast::{
-    BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
+    ArrayLiteral, BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
     FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
     PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
 };
@@ -77,6 +77,9 @@ impl Parser {
         parser
             .prefix_parse_fns
             .insert(TokenType::String, Parser::parse_string_literal);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::Lbracket, Parser::parse_array_literal);
 
         // Register infix parse functions
         parser
@@ -285,6 +288,35 @@ impl Parser {
         });
     }
 
+    fn parse_array_literal(&mut self) -> Expression {
+        return Expression::ArrayLiteral(ArrayLiteral {
+            token: self.current_token.clone(),
+            elements: self.parse_expression_list(TokenType::Rbracket),
+        });
+    }
+
+    fn parse_expression_list(&mut self, end: TokenType) -> Vec<Expression> {
+        let mut expressions: Vec<Expression> = Vec::new();
+
+        if self.peek_token.token_type == end {
+            self.next_token();
+            return expressions;
+        }
+
+        self.next_token();
+        expressions.push(self.parse_expression(Precedence::Lowest));
+
+        while self.peek_token.token_type == TokenType::Comma {
+            self.next_token();
+            self.next_token();
+            expressions.push(self.parse_expression(Precedence::Lowest));
+        }
+
+        self.expect_peek(end);
+
+        return expressions;
+    }
+
     fn parse_boolean_literal(&mut self) -> Expression {
         return Expression::BooleanLiteral(BooleanLiteral {
             token: self.current_token.clone(),
@@ -406,39 +438,17 @@ impl Parser {
         return Expression::CallExpression(CallExpression {
             token: self.current_token.clone(),
             function: Box::new(function),
-            arguments: self.parse_call_arguments(),
+            arguments: self.parse_expression_list(TokenType::Rparen),
         });
-    }
-
-    fn parse_call_arguments(&mut self) -> Vec<Expression> {
-        let mut arguments = vec![];
-
-        if self.peek_token.token_type == TokenType::Rparen {
-            self.next_token();
-            return arguments;
-        }
-
-        self.next_token();
-        arguments.push(self.parse_expression(Precedence::Lowest));
-
-        while self.peek_token.token_type == TokenType::Comma {
-            self.next_token();
-            self.next_token();
-            arguments.push(self.parse_expression(Precedence::Lowest));
-        }
-
-        self.expect_peek(TokenType::Rparen);
-
-        return arguments;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ast::{
-        BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
-        FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-        ReturnStatement, Statement, StringLiteral,
+        ArrayLiteral, BlockStatement, BooleanLiteral, CallExpression, Expression,
+        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, InfixExpression,
+        IntegerLiteral, LetStatement, ReturnStatement, Statement, StringLiteral,
     };
     use crate::lexer::Lexer;
     use crate::parser::Parser;
@@ -762,6 +772,58 @@ return 993322;";
                 })
             );
         }
+    }
+
+    #[test]
+    fn test_array_literal_expression() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        check_parser_errors(parser);
+        assert_eq!(
+            program.statements.len(),
+            1,
+            "Unexpected amount of statements parsed"
+        );
+
+        let statement = &program.statements[0];
+        assert_eq!(
+            *statement,
+            Statement::ExpressionStatement(ExpressionStatement {
+                token: Token {
+                    token_type: TokenType::Lbracket,
+                    literal: "[".to_string(),
+                },
+                expression: Expression::ArrayLiteral(ArrayLiteral {
+                    token: Token {
+                        token_type: TokenType::Lbracket,
+                        literal: "[".to_string(),
+                    },
+                    elements: vec![
+                        build_integer_literal_expression(1),
+                        build_infix_expression(
+                            build_integer_literal_expression(2),
+                            Token {
+                                token_type: TokenType::Asterisk,
+                                literal: "*".to_string(),
+                            },
+                            build_integer_literal_expression(2),
+                        ),
+                        build_infix_expression(
+                            build_integer_literal_expression(3),
+                            Token {
+                                token_type: TokenType::Plus,
+                                literal: "+".to_string(),
+                            },
+                            build_integer_literal_expression(3),
+                        ),
+                    ],
+                })
+            })
+        );
     }
 
     #[test]

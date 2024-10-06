@@ -106,6 +106,14 @@ impl Lexer {
                 token_type: TokenType::Rbrace,
                 literal: "}".to_string(),
             },
+            b'[' => Token {
+                token_type: TokenType::Lbracket,
+                literal: "[".to_string(),
+            },
+            b']' => Token {
+                token_type: TokenType::Rbracket,
+                literal: "]".to_string(),
+            },
             b'"' => Token {
                 token_type: TokenType::String,
                 literal: self.read_string(),
@@ -233,6 +241,7 @@ return false;
 10 != 9;
 \"foobar\"
 \"foo bar\"
+[1, 2];
 ";
         let expected_tokens = vec![
             Token {
@@ -534,6 +543,30 @@ return false;
             Token {
                 token_type: TokenType::String,
                 literal: "foo bar".to_string(),
+            },
+            Token {
+                token_type: TokenType::Lbracket,
+                literal: "[".to_string(),
+            },
+            Token {
+                token_type: TokenType::Int,
+                literal: "1".to_string(),
+            },
+            Token {
+                token_type: TokenType::Comma,
+                literal: ",".to_string(),
+            },
+            Token {
+                token_type: TokenType::Int,
+                literal: "2".to_string(),
+            },
+            Token {
+                token_type: TokenType::Rbracket,
+                literal: "]".to_string(),
+            },
+            Token {
+                token_type: TokenType::Semicolon,
+                literal: ";".to_string(),
             },
             Token {
                 token_type: TokenType::Eof,

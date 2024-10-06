@@ -215,6 +215,30 @@ impl ASTNode for StringLiteral {
     }
 }
 #[derive(Debug, PartialEq, Clone)]
+pub struct ArrayLiteral {
+    pub token: Token,
+    pub elements: Vec<Expression>,
+}
+impl fmt::Display for ArrayLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let elements: std::string::String = self
+            .elements
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<std::string::String>>()
+            .join(", ");
+        write!(f, "[{}]", elements)
+    }
+}
+impl ASTNode for ArrayLiteral {
+    fn evaluate(&self, _environment: &Rc<RefCell<Environment>>) -> Object {
+        // TODO: Implement evaluation of ArrayLiterals
+        return Object::String(String {
+            value: "".to_string(),
+        });
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
     pub token: Token,
     pub value: std::string::String,
@@ -381,6 +405,7 @@ pub enum Expression {
     IntegerLiteral(IntegerLiteral),
     StringLiteral(StringLiteral),
     BooleanLiteral(BooleanLiteral),
+    ArrayLiteral(ArrayLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
     IfExpression(IfExpression),
@@ -400,6 +425,9 @@ impl fmt::Display for Expression {
                 write!(f, "{}", expression)
             }
             Expression::BooleanLiteral(expression) => {
+                write!(f, "{}", expression)
+            }
+            Expression::ArrayLiteral(expression) => {
                 write!(f, "{}", expression)
             }
             Expression::PrefixExpression(expression) => {
@@ -427,6 +455,7 @@ impl ASTNode for Expression {
             Expression::IntegerLiteral(expression) => expression.evaluate(environment),
             Expression::StringLiteral(expression) => expression.evaluate(environment),
             Expression::BooleanLiteral(expression) => expression.evaluate(environment),
+            Expression::ArrayLiteral(expression) => expression.evaluate(environment),
             Expression::PrefixExpression(expression) => expression.evaluate(environment),
             Expression::InfixExpression(expression) => expression.evaluate(environment),
             Expression::IfExpression(expression) => expression.evaluate(environment),
