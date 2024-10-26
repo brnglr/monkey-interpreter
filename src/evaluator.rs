@@ -508,6 +508,61 @@ mod tests {
     }
 
     #[test]
+    fn test_array_index_expressions() {
+        struct TestData {
+            input: std::string::String,
+            expected_output: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "[1, 2, 3][0]".to_string(),
+                expected_output: build_integer_object(1),
+            },
+            TestData {
+                input: "[1, 2, 3][1]".to_string(),
+                expected_output: build_integer_object(2),
+            },
+            TestData {
+                input: "[1, 2, 3][2]".to_string(),
+                expected_output: build_integer_object(3),
+            },
+            TestData {
+                input: "let i = 0; [1][i];".to_string(),
+                expected_output: build_integer_object(1),
+            },
+            TestData {
+                input: "[1, 2, 3][1 + 1];".to_string(),
+                expected_output: build_integer_object(3),
+            },
+            TestData {
+                input: "let myArray = [1, 2, 3]; myArray[2];".to_string(),
+                expected_output: build_integer_object(3),
+            },
+            TestData {
+                input: "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];".to_string(),
+                expected_output: build_integer_object(6),
+            },
+            TestData {
+                input: "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]".to_string(),
+                expected_output: build_integer_object(2),
+            },
+            TestData {
+                input: "[1, 2, 3][3]".to_string(),
+                expected_output: NULL,
+            },
+            TestData {
+                input: "[1, 2, 3][-1]".to_string(),
+                expected_output: NULL,
+            },
+        ];
+
+        for test in tests.iter() {
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected_output);
+        }
+    }
+
+    #[test]
     fn test_builtin_functions() {
         struct TestData {
             input: std::string::String,

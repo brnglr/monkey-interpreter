@@ -420,7 +420,41 @@ impl fmt::Display for IndexExpression {
 }
 impl ASTNode for IndexExpression {
     fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
-        todo!();
+        let evaluated_left = self.left.evaluate(environment);
+        if let Object::Error(_) = evaluated_left {
+            return evaluated_left;
+        }
+        let evaluated_index = self.index.evaluate(environment);
+        if let Object::Error(_) = evaluated_index {
+            return evaluated_index;
+        }
+
+        match evaluated_left {
+            Object::Array(array) => match evaluated_index {
+                Object::Integer(index_value) => {
+                    let max = array.elements.len() - 1;
+                    let idx = index_value.value as usize;
+
+                    if idx < 0 || idx > max {
+                        return NULL;
+                    }
+
+                    return array.elements[idx].clone();
+                }
+                _ => Object::Error(Error {
+                    message: format!(
+                        "index operator type not supported: {}",
+                        evaluated_index.get_type()
+                    ),
+                }),
+            },
+            _ => Object::Error(Error {
+                message: format!(
+                    "index operator not supported on operand: {}",
+                    evaluated_left.get_type()
+                ),
+            }),
+        }
     }
 }
 #[derive(Debug, PartialEq, Clone)]
