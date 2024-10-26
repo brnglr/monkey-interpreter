@@ -11,7 +11,7 @@ pub fn eval<T: ASTNode>(node: T, environment: &Rc<RefCell<Environment>>) -> Obje
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Environment, Error, Integer, Object, String, FALSE, NULL, TRUE};
+    use crate::object::{Array, Environment, Error, Integer, Object, String, FALSE, NULL, TRUE};
     use crate::parser::Parser;
 
     // =========================================================
@@ -488,6 +488,23 @@ mod tests {
         let input = "\"Hello\" + \" \" + \"World!\"".to_string();
         let evaluated = evaluate_input(&input);
         assert_eq!(evaluated, build_string_object("Hello World!"));
+    }
+
+    #[test]
+    fn test_array_literal() {
+        let input = "[1, 2 * 2, 3 + 3]".to_string();
+        let evaluated = evaluate_input(&input);
+
+        assert_eq!(
+            evaluated,
+            Object::Array(Array {
+                elements: vec![
+                    build_integer_object(1),
+                    build_integer_object(4),
+                    build_integer_object(6),
+                ],
+            })
+        );
     }
 
     #[test]

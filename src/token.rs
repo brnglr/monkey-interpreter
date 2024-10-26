@@ -55,6 +55,7 @@ pub fn get_precedence(token_type: &TokenType) -> Precedence {
         TokenType::Minus => Precedence::Sum,
         TokenType::Slash => Precedence::Product,
         TokenType::Asterisk => Precedence::Product,
+        TokenType::Lbracket => Precedence::Index,
         _ => Precedence::Lowest,
     }
 }

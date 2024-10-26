@@ -62,6 +62,21 @@ impl fmt::Display for Boolean {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Array {
+    pub elements: Vec<Object>,
+}
+impl Array {
+    pub fn get_type(&self) -> &'static str {
+        "ARRAY"
+    }
+}
+impl fmt::Display for Array {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.elements)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct ReturnValue {
     pub value: Box<Object>,
 }
@@ -143,6 +158,7 @@ pub enum Object {
     Integer(Integer),
     String(String),
     Boolean(Boolean),
+    Array(Array),
     ReturnValue(ReturnValue),
     Function(Function),
     BuiltIn(BuiltIn),
@@ -155,6 +171,7 @@ impl Object {
             Object::Integer(integer) => integer.get_type(),
             Object::String(string) => string.get_type(),
             Object::Boolean(boolean) => boolean.get_type(),
+            Object::Array(array) => array.get_type(),
             Object::ReturnValue(return_value) => return_value.get_type(),
             Object::Function(function) => function.get_type(),
             Object::BuiltIn(built_in) => built_in.get_type(),
@@ -169,6 +186,7 @@ impl fmt::Display for Object {
             Object::Integer(integer) => write!(f, "{}", integer),
             Object::String(string) => write!(f, "{}", string),
             Object::Boolean(boolean) => write!(f, "{}", boolean),
+            Object::Array(array) => write!(f, "{}", array),
             Object::ReturnValue(return_value) => write!(f, "{}", return_value),
             Object::Function(function) => write!(f, "{}", function),
             Object::BuiltIn(built_in) => write!(f, "{}", built_in),

@@ -1,7 +1,7 @@
 use crate::builtins::get_builtin;
 use crate::object::{
-    get_boolean_object, Environment, Error, Function, Integer, Object, ReturnValue, String, FALSE,
-    NULL, TRUE,
+    get_boolean_object, Array, Environment, Error, Function, Integer, Object, ReturnValue, String,
+    FALSE, NULL, TRUE,
 };
 use crate::token::Token;
 use std::cell::RefCell;
@@ -231,10 +231,18 @@ impl fmt::Display for ArrayLiteral {
     }
 }
 impl ASTNode for ArrayLiteral {
-    fn evaluate(&self, _environment: &Rc<RefCell<Environment>>) -> Object {
-        // TODO: Implement evaluation of ArrayLiterals
-        return Object::String(String {
-            value: "".to_string(),
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        let mut evaluated_elements = vec![];
+        for element in self.elements.iter() {
+            let evaluated_element = element.evaluate(environment);
+            if let Object::Error(_) = evaluated_element {
+                return evaluated_element;
+            }
+            evaluated_elements.push(evaluated_element);
+        }
+
+        return Object::Array(Array {
+            elements: evaluated_elements,
         });
     }
 }
@@ -400,6 +408,22 @@ impl ASTNode for CallExpression {
     }
 }
 #[derive(Debug, PartialEq, Clone)]
+pub struct IndexExpression {
+    pub token: Token,
+    pub left: Box<Expression>,
+    pub index: Box<Expression>,
+}
+impl fmt::Display for IndexExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({}[{}])", self.left, self.index)
+    }
+}
+impl ASTNode for IndexExpression {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        todo!();
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
@@ -411,6 +435,7 @@ pub enum Expression {
     IfExpression(IfExpression),
     FunctionLiteral(FunctionLiteral),
     CallExpression(CallExpression),
+    IndexExpression(IndexExpression),
 }
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -445,6 +470,9 @@ impl fmt::Display for Expression {
             Expression::CallExpression(expression) => {
                 write!(f, "{}", expression)
             }
+            Expression::IndexExpression(expression) => {
+                write!(f, "{}", expression)
+            }
         }
     }
 }
@@ -461,6 +489,7 @@ impl ASTNode for Expression {
             Expression::IfExpression(expression) => expression.evaluate(environment),
             Expression::FunctionLiteral(expression) => expression.evaluate(environment),
             Expression::CallExpression(expression) => expression.evaluate(environment),
+            Expression::IndexExpression(expression) => expression.evaluate(environment),
         }
     }
 }

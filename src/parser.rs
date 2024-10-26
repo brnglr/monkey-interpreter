@@ -1,7 +1,7 @@
 use crate::ast::{
     ArrayLiteral, BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
-    FunctionLiteral, Identifier, IfExpression, InfixExpression, IntegerLiteral, LetStatement,
-    PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
+    FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, IntegerLiteral,
+    LetStatement, PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
 };
 use crate::lexer::Lexer;
 use crate::token::{self, Token, TokenType};
@@ -25,6 +25,7 @@ pub enum Precedence {
     Product = 5,
     Prefix = 6,
     Call = 7,
+    Index = 8,
 }
 
 impl Parser {
@@ -109,6 +110,9 @@ impl Parser {
         parser
             .infix_parse_fns
             .insert(TokenType::Lparen, Parser::parse_call_expression);
+        parser
+            .infix_parse_fns
+            .insert(TokenType::Lbracket, Parser::parse_index_expression);
         return parser;
     }
 
@@ -441,14 +445,29 @@ impl Parser {
             arguments: self.parse_expression_list(TokenType::Rparen),
         });
     }
+
+    fn parse_index_expression(&mut self, left: Expression) -> Expression {
+        let token = self.current_token.clone();
+
+        self.next_token();
+        let index = self.parse_expression(Precedence::Lowest);
+
+        self.expect_peek(TokenType::Rbracket);
+
+        return Expression::IndexExpression(IndexExpression {
+            token: token,
+            left: Box::new(left),
+            index: Box::new(index),
+        });
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ast::{
         ArrayLiteral, BlockStatement, BooleanLiteral, CallExpression, Expression,
-        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, InfixExpression,
-        IntegerLiteral, LetStatement, ReturnStatement, Statement, StringLiteral,
+        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, IndexExpression,
+        InfixExpression, IntegerLiteral, LetStatement, ReturnStatement, Statement, StringLiteral,
     };
     use crate::lexer::Lexer;
     use crate::parser::Parser;
@@ -1071,6 +1090,77 @@ return 993322;";
     }
 
     #[test]
+    fn test_index_expressions() {
+        struct TestData {
+            input: String,
+            expected_output: Expression,
+        }
+        let tests = vec![
+            TestData {
+                input: "myArray[1 + 1]".to_string(),
+                expected_output: Expression::IndexExpression(IndexExpression {
+                    token: Token {
+                        token_type: TokenType::Lbracket,
+                        literal: "[".to_string(),
+                    },
+                    left: Box::new(Expression::Identifier(build_identifier("myArray"))),
+                    index: Box::new(build_infix_expression(
+                        build_integer_literal_expression(1),
+                        Token {
+                            token_type: TokenType::Plus,
+                            literal: "+".to_string(),
+                        },
+                        build_integer_literal_expression(1),
+                    )),
+                }),
+            },
+            TestData {
+                input: "[1,2,3][0]".to_string(),
+                expected_output: Expression::IndexExpression(IndexExpression {
+                    token: Token {
+                        token_type: TokenType::Lbracket,
+                        literal: "[".to_string(),
+                    },
+                    left: Box::new(Expression::ArrayLiteral(ArrayLiteral {
+                        token: Token {
+                            token_type: TokenType::Lbracket,
+                            literal: "[".to_string(),
+                        },
+                        elements: vec![
+                            build_integer_literal_expression(1),
+                            build_integer_literal_expression(2),
+                            build_integer_literal_expression(3),
+                        ],
+                    })),
+                    index: Box::new(build_integer_literal_expression(0)),
+                }),
+            },
+        ];
+
+        for test in tests.iter() {
+            let lexer = Lexer::new(&test.input);
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            check_parser_errors(parser);
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "Unexpected amount of statements parsed"
+            );
+
+            for statement in program.statements.iter() {
+                match statement {
+                    Statement::ExpressionStatement(statement) => {
+                        assert_eq!(statement.expression, test.expected_output);
+                    }
+                    _ => panic!("Statement is not an expression statement as expected!"),
+                }
+            }
+        }
+    }
+
+    #[test]
     fn test_prefix_expressions() {
         struct TestData {
             input: String,
@@ -1334,6 +1424,14 @@ return 993322;";
             TestData {
                 input: "add(a + b + c * d / f + g)".to_string(),
                 expected: "add((((a + b) + ((c * d) / f)) + g))".to_string(),
+            },
+            TestData {
+                input: "a * [1, 2, 3, 4][b * c] * d".to_string(),
+                expected: "((a * ([1, 2, 3, 4][(b * c)])) * d)".to_string(),
+            },
+            TestData {
+                input: "add(a * b[2], b[1], 2 * [1, 2][1])".to_string(),
+                expected: "add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))".to_string(),
             },
         ];
 
