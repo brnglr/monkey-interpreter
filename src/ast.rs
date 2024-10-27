@@ -433,13 +433,13 @@ impl ASTNode for IndexExpression {
             Object::Array(array) => match evaluated_index {
                 Object::Integer(index_value) => {
                     let max = array.elements.len() - 1;
-                    let idx = index_value.value as usize;
+                    let idx = index_value.value;
 
-                    if idx < 0 || idx > max {
+                    if idx < 0 || idx as usize > max {
                         return NULL;
                     }
 
-                    return array.elements[idx].clone();
+                    return array.elements[idx as usize].clone();
                 }
                 _ => Object::Error(Error {
                     message: format!(

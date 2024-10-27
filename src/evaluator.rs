@@ -582,6 +582,78 @@ mod tests {
                 expected_output: build_integer_object(11),
             },
             TestData {
+                input: "len([1,2,3])".to_string(),
+                expected_output: build_integer_object(3),
+            },
+            TestData {
+                input: "len([1,2,3,4,5,6])".to_string(),
+                expected_output: build_integer_object(6),
+            },
+            TestData {
+                input: "len([])".to_string(),
+                expected_output: build_integer_object(0),
+            },
+            TestData {
+                input: "first([])".to_string(),
+                expected_output: NULL,
+            },
+            TestData {
+                input: "first([1,2,3,4])".to_string(),
+                expected_output: build_integer_object(1),
+            },
+            TestData {
+                input: "last([1,2,3,4])".to_string(),
+                expected_output: build_integer_object(4),
+            },
+            TestData {
+                input: "rest([1,2,3,4])".to_string(),
+                expected_output: Object::Array(Array {
+                    elements: vec![
+                        build_integer_object(2),
+                        build_integer_object(3),
+                        build_integer_object(4),
+                    ],
+                }),
+            },
+            TestData {
+                input: "rest(rest([1,2,3,4]))".to_string(),
+                expected_output: Object::Array(Array {
+                    elements: vec![build_integer_object(3), build_integer_object(4)],
+                }),
+            },
+            TestData {
+                input: "rest(rest(rest([1,2,3,4])))".to_string(),
+                expected_output: Object::Array(Array {
+                    elements: vec![build_integer_object(4)],
+                }),
+            },
+            TestData {
+                input: "rest(rest(rest(rest([1,2,3,4]))))".to_string(),
+                expected_output: Object::Array(Array { elements: vec![] }),
+            },
+            TestData {
+                input: "rest(rest(rest(rest(rest([1,2,3,4])))))".to_string(),
+                expected_output: NULL,
+            },
+            TestData {
+                input: "push([1,2,3,4], 5)".to_string(),
+                expected_output: Object::Array(Array {
+                    elements: vec![
+                        build_integer_object(1),
+                        build_integer_object(2),
+                        build_integer_object(3),
+                        build_integer_object(4),
+                        build_integer_object(5),
+                    ],
+                }),
+            },
+            TestData {
+                input: "push([], 5)".to_string(),
+                expected_output: Object::Array(Array {
+                    elements: vec![build_integer_object(5)],
+                }),
+            },
+            TestData {
                 input: "len(1)".to_string(),
                 expected_output: Object::Error(Error {
                     message: "argument to `len` not supported, got INTEGER".to_string(),
