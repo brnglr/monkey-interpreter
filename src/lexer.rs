@@ -86,6 +86,10 @@ impl Lexer {
                 token_type: TokenType::Semicolon,
                 literal: ";".to_string(),
             },
+            b':' => Token {
+                token_type: TokenType::Colon,
+                literal: ":".to_string(),
+            },
             b'(' => Token {
                 token_type: TokenType::Lparen,
                 literal: "(".to_string(),
@@ -242,6 +246,7 @@ return false;
 \"foobar\"
 \"foo bar\"
 [1, 2];
+{\"foo\": \"bar\"}
 ";
         let expected_tokens = vec![
             Token {
@@ -567,6 +572,26 @@ return false;
             Token {
                 token_type: TokenType::Semicolon,
                 literal: ";".to_string(),
+            },
+            Token {
+                token_type: TokenType::Lbrace,
+                literal: "{".to_string(),
+            },
+            Token {
+                token_type: TokenType::String,
+                literal: "foo".to_string(),
+            },
+            Token {
+                token_type: TokenType::Colon,
+                literal: ":".to_string(),
+            },
+            Token {
+                token_type: TokenType::String,
+                literal: "bar".to_string(),
+            },
+            Token {
+                token_type: TokenType::Rbrace,
+                literal: "}".to_string(),
             },
             Token {
                 token_type: TokenType::Eof,
