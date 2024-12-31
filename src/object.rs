@@ -2,6 +2,7 @@ use crate::ast::{BlockStatement, Identifier};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
 pub const TRUE: Object = Object::Boolean(Boolean { value: true });
@@ -16,6 +17,16 @@ pub fn get_boolean_object(value: bool) -> Object {
     }
 }
 
+// This trait allows a type to be used as a key into the Monkey language's
+// built-in hash map type.
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct MonkeyHashKey {
+    value: u64,
+}
+pub trait Hashable {
+    fn hash_key(&self) -> MonkeyHashKey;
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Integer {
     pub value: i64,
@@ -23,6 +34,13 @@ pub struct Integer {
 impl Integer {
     pub fn get_type(&self) -> &'static str {
         "INTEGER"
+    }
+}
+impl Hashable for Integer {
+    fn hash_key(&self) -> MonkeyHashKey {
+        return MonkeyHashKey {
+            value: self.value as u64,
+        };
     }
 }
 impl fmt::Display for Integer {
@@ -40,6 +58,15 @@ impl String {
         "STRING"
     }
 }
+impl Hashable for String {
+    fn hash_key(&self) -> MonkeyHashKey {
+        let mut hasher = DefaultHasher::new();
+        self.value.hash(&mut hasher);
+        return MonkeyHashKey {
+            value: hasher.finish(),
+        };
+    }
+}
 impl fmt::Display for String {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
@@ -53,6 +80,13 @@ pub struct Boolean {
 impl Boolean {
     pub fn get_type(&self) -> &'static str {
         "BOOLEAN"
+    }
+}
+impl Hashable for Boolean {
+    fn hash_key(&self) -> MonkeyHashKey {
+        return MonkeyHashKey {
+            value: self.value as u64,
+        };
     }
 }
 impl fmt::Display for Boolean {
@@ -73,6 +107,30 @@ impl Array {
 impl fmt::Display for Array {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.elements)
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct HashPair {
+    key: Object,
+    value: Object,
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct MonkeyHashMap {
+    pub pairs: HashMap<MonkeyHashKey, HashPair>,
+}
+impl MonkeyHashMap {
+    pub fn get_type(&self) -> &'static str {
+        "HASH_MAP"
+    }
+}
+impl fmt::Display for MonkeyHashMap {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut pair_strs = vec![];
+        for (_, pair) in self.pairs.iter() {
+            pair_strs.push(format!("{}: {}", pair.key, pair.value));
+        }
+        write!(f, "{{{}}}", pair_strs.join(", "))
     }
 }
 
@@ -159,6 +217,7 @@ pub enum Object {
     String(String),
     Boolean(Boolean),
     Array(Array),
+    MonkeyHashMap(MonkeyHashMap),
     ReturnValue(ReturnValue),
     Function(Function),
     BuiltIn(BuiltIn),
@@ -172,11 +231,22 @@ impl Object {
             Object::String(string) => string.get_type(),
             Object::Boolean(boolean) => boolean.get_type(),
             Object::Array(array) => array.get_type(),
+            Object::MonkeyHashMap(hash_map) => hash_map.get_type(),
             Object::ReturnValue(return_value) => return_value.get_type(),
             Object::Function(function) => function.get_type(),
             Object::BuiltIn(built_in) => built_in.get_type(),
             Object::Error(error) => error.get_type(),
             Object::Null(null) => null.get_type(),
+        }
+    }
+}
+impl Hashable for Object {
+    fn hash_key(&self) -> MonkeyHashKey {
+        match self {
+            Object::Integer(integer) => integer.hash_key(),
+            Object::String(string) => string.hash_key(),
+            Object::Boolean(boolean) => boolean.hash_key(),
+            _ => panic!("Object type not supported as hash key: {}", self.get_type()),
         }
     }
 }
@@ -187,6 +257,7 @@ impl fmt::Display for Object {
             Object::String(string) => write!(f, "{}", string),
             Object::Boolean(boolean) => write!(f, "{}", boolean),
             Object::Array(array) => write!(f, "{}", array),
+            Object::MonkeyHashMap(hash_map) => write!(f, "{}", hash_map),
             Object::ReturnValue(return_value) => write!(f, "{}", return_value),
             Object::Function(function) => write!(f, "{}", function),
             Object::BuiltIn(built_in) => write!(f, "{}", built_in),
@@ -230,5 +301,54 @@ impl Environment {
     pub fn set(&mut self, name: std::string::String, object: Object) -> Object {
         self.store.insert(name, object.clone());
         return object;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::object::{Boolean, Hashable, Integer, Object, String};
+
+    #[test]
+    fn test_string_hash_key() {
+        let hello1 = Object::String(String {
+            value: "Hello".to_string(),
+        });
+        let hello2 = Object::String(String {
+            value: "Hello".to_string(),
+        });
+        let diff1 = Object::String(String {
+            value: "Diff".to_string(),
+        });
+        let diff2 = Object::String(String {
+            value: "Diff".to_string(),
+        });
+
+        assert_eq!(hello1.hash_key(), hello2.hash_key());
+        assert_eq!(diff1.hash_key(), diff2.hash_key());
+        assert!(hello1.hash_key() != diff1.hash_key());
+    }
+
+    #[test]
+    fn test_boolean_hash_key() {
+        let true_object1 = Object::Boolean(Boolean { value: true });
+        let true_object2 = Object::Boolean(Boolean { value: true });
+        let false_object1 = Object::Boolean(Boolean { value: false });
+        let false_object2 = Object::Boolean(Boolean { value: false });
+
+        assert_eq!(true_object1.hash_key(), true_object2.hash_key());
+        assert_eq!(false_object1.hash_key(), false_object2.hash_key());
+        assert!(true_object1.hash_key() != false_object1.hash_key());
+    }
+
+    #[test]
+    fn test_integer_hash_key() {
+        let one1 = Object::Integer(Integer { value: 1 });
+        let one2 = Object::Integer(Integer { value: 1 });
+        let two1 = Object::Integer(Integer { value: 2 });
+        let two2 = Object::Integer(Integer { value: 2 });
+
+        assert_eq!(one1.hash_key(), one2.hash_key());
+        assert_eq!(two1.hash_key(), two2.hash_key());
+        assert!(one1.hash_key() != two1.hash_key());
     }
 }
