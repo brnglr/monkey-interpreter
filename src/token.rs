@@ -71,7 +71,7 @@ pub fn is_allowed_in_int(character: u8) -> bool {
     return character.is_ascii_digit();
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
     pub literal: String,

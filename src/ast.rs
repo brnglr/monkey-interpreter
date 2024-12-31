@@ -5,14 +5,16 @@ use crate::object::{
 };
 use crate::token::Token;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 pub trait ASTNode {
     fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object;
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct InfixExpression {
     pub token: Token,
     pub left: Box<Expression>,
@@ -122,7 +124,7 @@ impl ASTNode for InfixExpression {
         }
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct PrefixExpression {
     pub token: Token,
     pub operator: std::string::String,
@@ -167,7 +169,7 @@ impl ASTNode for PrefixExpression {
         }
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct BooleanLiteral {
     pub token: Token,
     pub value: bool,
@@ -182,7 +184,7 @@ impl ASTNode for BooleanLiteral {
         get_boolean_object(self.value)
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
@@ -197,7 +199,7 @@ impl ASTNode for IntegerLiteral {
         return Object::Integer(Integer { value: self.value });
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct StringLiteral {
     pub token: Token,
     pub value: std::string::String,
@@ -214,7 +216,7 @@ impl ASTNode for StringLiteral {
         });
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct ArrayLiteral {
     pub token: Token,
     pub elements: Vec<Expression>,
@@ -246,7 +248,35 @@ impl ASTNode for ArrayLiteral {
         });
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct HashLiteral {
+    pub token: Token,
+    pub pairs: HashMap<Expression, Expression>,
+}
+impl fmt::Display for HashLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let pairs: std::string::String = self
+            .pairs
+            .iter()
+            .map(|(x, y)| x.to_string() + ":" + &y.to_string())
+            .collect::<Vec<std::string::String>>()
+            .join(", ");
+        write!(f, "{{{}}}", pairs)
+    }
+}
+impl Hash for HashLiteral {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.token.hash(state);
+        // TODO: Probably something better we can do here
+        state.write(self.to_string().as_bytes());
+    }
+}
+impl ASTNode for HashLiteral {
+    fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
+        todo!()
+    }
+}
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct Identifier {
     pub token: Token,
     pub value: std::string::String,
@@ -272,7 +302,7 @@ impl ASTNode for Identifier {
         };
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct IfExpression {
     pub token: Token,
     pub condition: Box<Expression>,
@@ -325,7 +355,7 @@ impl ASTNode for IfExpression {
         }
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct FunctionLiteral {
     pub token: Token,
     pub parameters: Vec<Identifier>,
@@ -347,7 +377,7 @@ impl ASTNode for FunctionLiteral {
         });
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct CallExpression {
     pub token: Token,
     pub function: Box<Expression>,
@@ -407,7 +437,7 @@ impl ASTNode for CallExpression {
         };
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub struct IndexExpression {
     pub token: Token,
     pub left: Box<Expression>,
@@ -457,13 +487,14 @@ impl ASTNode for IndexExpression {
         }
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone)]
 pub enum Expression {
     Identifier(Identifier),
     IntegerLiteral(IntegerLiteral),
     StringLiteral(StringLiteral),
     BooleanLiteral(BooleanLiteral),
     ArrayLiteral(ArrayLiteral),
+    HashLiteral(HashLiteral),
     PrefixExpression(PrefixExpression),
     InfixExpression(InfixExpression),
     IfExpression(IfExpression),
@@ -487,6 +518,9 @@ impl fmt::Display for Expression {
                 write!(f, "{}", expression)
             }
             Expression::ArrayLiteral(expression) => {
+                write!(f, "{}", expression)
+            }
+            Expression::HashLiteral(expression) => {
                 write!(f, "{}", expression)
             }
             Expression::PrefixExpression(expression) => {
@@ -518,6 +552,7 @@ impl ASTNode for Expression {
             Expression::StringLiteral(expression) => expression.evaluate(environment),
             Expression::BooleanLiteral(expression) => expression.evaluate(environment),
             Expression::ArrayLiteral(expression) => expression.evaluate(environment),
+            Expression::HashLiteral(expression) => expression.evaluate(environment),
             Expression::PrefixExpression(expression) => expression.evaluate(environment),
             Expression::InfixExpression(expression) => expression.evaluate(environment),
             Expression::IfExpression(expression) => expression.evaluate(environment),
@@ -528,7 +563,7 @@ impl ASTNode for Expression {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct ExpressionStatement {
     pub token: Token,
     pub expression: Expression,
@@ -543,7 +578,7 @@ impl ASTNode for ExpressionStatement {
         return self.expression.evaluate(environment);
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct LetStatement {
     pub token: Token,
     pub name: Identifier,
@@ -566,7 +601,7 @@ impl ASTNode for LetStatement {
             .set(self.name.value.clone(), evaluated);
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct ReturnStatement {
     pub token: Token,
     pub return_value: Expression,
@@ -587,7 +622,7 @@ impl ASTNode for ReturnStatement {
         });
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub struct BlockStatement {
     pub token: Token,
     pub statements: Vec<Statement>,
@@ -619,7 +654,7 @@ impl ASTNode for BlockStatement {
         return result.unwrap_or(NULL);
     }
 }
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Hash, Eq, PartialEq, Clone)]
 pub enum Statement {
     LetStatement(LetStatement),
     ReturnStatement(ReturnStatement),

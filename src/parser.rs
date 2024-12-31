@@ -1,7 +1,8 @@
 use crate::ast::{
     ArrayLiteral, BlockStatement, BooleanLiteral, CallExpression, Expression, ExpressionStatement,
-    FunctionLiteral, Identifier, IfExpression, IndexExpression, InfixExpression, IntegerLiteral,
-    LetStatement, PrefixExpression, Program, ReturnStatement, Statement, StringLiteral,
+    FunctionLiteral, HashLiteral, Identifier, IfExpression, IndexExpression, InfixExpression,
+    IntegerLiteral, LetStatement, PrefixExpression, Program, ReturnStatement, Statement,
+    StringLiteral,
 };
 use crate::lexer::Lexer;
 use crate::token::{self, Token, TokenType};
@@ -81,6 +82,9 @@ impl Parser {
         parser
             .prefix_parse_fns
             .insert(TokenType::Lbracket, Parser::parse_array_literal);
+        parser
+            .prefix_parse_fns
+            .insert(TokenType::Lbrace, Parser::parse_hash_literal);
 
         // Register infix parse functions
         parser
@@ -299,6 +303,29 @@ impl Parser {
         });
     }
 
+    fn parse_hash_literal(&mut self) -> Expression {
+        let token = self.current_token.clone();
+        let mut pairs: HashMap<Expression, Expression> = HashMap::new();
+
+        while self.peek_token.token_type != TokenType::Rbrace {
+            self.next_token();
+            let key = self.parse_expression(Precedence::Lowest);
+
+            self.expect_peek(TokenType::Colon);
+            self.next_token();
+            let value = self.parse_expression(Precedence::Lowest);
+
+            pairs.insert(key, value);
+            if self.peek_token.token_type != TokenType::Rbrace {
+                self.expect_peek(TokenType::Comma);
+            }
+        }
+
+        self.expect_peek(TokenType::Rbrace);
+
+        return Expression::HashLiteral(HashLiteral { token, pairs });
+    }
+
     fn parse_expression_list(&mut self, end: TokenType) -> Vec<Expression> {
         let mut expressions: Vec<Expression> = Vec::new();
 
@@ -466,12 +493,14 @@ impl Parser {
 mod tests {
     use crate::ast::{
         ArrayLiteral, BlockStatement, BooleanLiteral, CallExpression, Expression,
-        ExpressionStatement, FunctionLiteral, Identifier, IfExpression, IndexExpression,
-        InfixExpression, IntegerLiteral, LetStatement, ReturnStatement, Statement, StringLiteral,
+        ExpressionStatement, FunctionLiteral, HashLiteral, Identifier, IfExpression,
+        IndexExpression, InfixExpression, IntegerLiteral, LetStatement, ReturnStatement, Statement,
+        StringLiteral,
     };
     use crate::lexer::Lexer;
     use crate::parser::Parser;
     use crate::token::{Token, TokenType};
+    use std::collections::HashMap;
 
     // =========================================================
     // Helper functions for testing
@@ -601,6 +630,16 @@ mod tests {
             },
             parameters: parameters,
             body: body,
+        });
+    }
+
+    fn build_hash_literal_expression(pairs: HashMap<Expression, Expression>) -> Expression {
+        return Expression::HashLiteral(HashLiteral {
+            token: Token {
+                token_type: TokenType::Lbrace,
+                literal: "{".to_string(),
+            },
+            pairs: pairs,
         });
     }
 
@@ -843,6 +882,123 @@ return 993322;";
                 })
             })
         );
+    }
+
+    #[test]
+    fn test_hash_literal_parsing() {
+        struct TestData {
+            input: String,
+            expected: Expression,
+        }
+        let tests = vec![
+            TestData {
+                input: "{\"one\": 1, \"two\": 2, \"three\": 3}".to_string(),
+                expected: build_hash_literal_expression({
+                    let mut pairs = HashMap::new();
+                    pairs.insert(
+                        build_string_literal_expression("one".to_string()),
+                        build_integer_literal_expression(1),
+                    );
+                    pairs.insert(
+                        build_string_literal_expression("two".to_string()),
+                        build_integer_literal_expression(2),
+                    );
+                    pairs.insert(
+                        build_string_literal_expression("three".to_string()),
+                        build_integer_literal_expression(3),
+                    );
+                    pairs
+                }),
+            },
+            TestData {
+                input: "{1: 1+1, 2: 2+2, 3: 3+3-3}".to_string(),
+                expected: build_hash_literal_expression({
+                    let mut pairs = HashMap::new();
+                    pairs.insert(
+                        build_integer_literal_expression(1),
+                        build_infix_expression(
+                            build_integer_literal_expression(1),
+                            Token {
+                                token_type: TokenType::Plus,
+                                literal: "+".to_string(),
+                            },
+                            build_integer_literal_expression(1),
+                        ),
+                    );
+                    pairs.insert(
+                        build_integer_literal_expression(2),
+                        build_infix_expression(
+                            build_integer_literal_expression(2),
+                            Token {
+                                token_type: TokenType::Plus,
+                                literal: "+".to_string(),
+                            },
+                            build_integer_literal_expression(2),
+                        ),
+                    );
+                    pairs.insert(
+                        build_integer_literal_expression(3),
+                        build_infix_expression(
+                            build_infix_expression(
+                                build_integer_literal_expression(3),
+                                Token {
+                                    token_type: TokenType::Plus,
+                                    literal: "+".to_string(),
+                                },
+                                build_integer_literal_expression(3),
+                            ),
+                            Token {
+                                token_type: TokenType::Minus,
+                                literal: "-".to_string(),
+                            },
+                            build_integer_literal_expression(3),
+                        ),
+                    );
+                    pairs
+                }),
+            },
+            TestData {
+                input: "{true: 1, false: 2}".to_string(),
+                expected: build_hash_literal_expression({
+                    let mut pairs = HashMap::new();
+                    pairs.insert(
+                        build_boolean_literal_expression(true),
+                        build_integer_literal_expression(1),
+                    );
+                    pairs.insert(
+                        build_boolean_literal_expression(false),
+                        build_integer_literal_expression(2),
+                    );
+                    pairs
+                }),
+            },
+            TestData {
+                input: "{}".to_string(),
+                expected: build_hash_literal_expression(HashMap::new()),
+            },
+        ];
+
+        for test in tests.iter() {
+            let lexer = Lexer::new(&test.input);
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
+
+            check_parser_errors(parser);
+            assert_eq!(
+                program.statements.len(),
+                1,
+                "Unexpected amount of statements parsed"
+            );
+
+            for statement in program.statements.iter() {
+                match statement {
+                    Statement::ExpressionStatement(statement) => {
+                        assert_eq!(statement.expression, test.expected);
+                    }
+                    _ => panic!("Statement is not an expression statement as expected!"),
+                }
+            }
+        }
     }
 
     #[test]
