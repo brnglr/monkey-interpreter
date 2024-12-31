@@ -112,8 +112,8 @@ impl fmt::Display for Array {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct HashPair {
-    key: Object,
-    value: Object,
+    pub key: Object,
+    pub value: Object,
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct MonkeyHashMap {

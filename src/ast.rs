@@ -1,7 +1,7 @@
 use crate::builtins::get_builtin;
 use crate::object::{
-    get_boolean_object, Array, Environment, Error, Function, Integer, Object, ReturnValue, String,
-    FALSE, NULL, TRUE,
+    get_boolean_object, Array, Environment, Error, Function, HashPair, Hashable, Integer,
+    MonkeyHashMap, Object, ReturnValue, String, FALSE, NULL, TRUE,
 };
 use crate::token::Token;
 use std::cell::RefCell;
@@ -273,7 +273,33 @@ impl Hash for HashLiteral {
 }
 impl ASTNode for HashLiteral {
     fn evaluate(&self, environment: &Rc<RefCell<Environment>>) -> Object {
-        todo!()
+        let mut evaluated_pairs = HashMap::new();
+
+        for (key, value) in &self.pairs {
+            let evaluated_key = key.evaluate(environment);
+            if let Object::Error(_) = evaluated_key {
+                return evaluated_key;
+            }
+
+            let hash_key = evaluated_key.hash_key();
+
+            let evaluated_value = value.evaluate(environment);
+            if let Object::Error(_) = evaluated_value {
+                return evaluated_value;
+            }
+
+            evaluated_pairs.insert(
+                hash_key,
+                HashPair {
+                    key: evaluated_key,
+                    value: evaluated_value,
+                },
+            );
+        }
+
+        return Object::MonkeyHashMap(MonkeyHashMap {
+            pairs: evaluated_pairs,
+        });
     }
 }
 #[derive(Debug, Hash, PartialEq, Eq, Clone)]

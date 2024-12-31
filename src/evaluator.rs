@@ -11,8 +11,11 @@ pub fn eval<T: ASTNode>(node: T, environment: &Rc<RefCell<Environment>>) -> Obje
 mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
-    use crate::object::{Array, Environment, Error, Integer, Object, String, FALSE, NULL, TRUE};
+    use crate::object::{
+        Array, Environment, Error, Hashable, Integer, Object, String, FALSE, NULL, TRUE,
+    };
     use crate::parser::Parser;
+    use std::collections::HashMap;
 
     // =========================================================
     // Helper functions for testing
@@ -670,6 +673,66 @@ mod tests {
         for test in tests.iter() {
             let evaluated = evaluate_input(&test.input);
             assert_eq!(evaluated, test.expected_output);
+        }
+    }
+
+    #[test]
+    fn test_hash_literal() {
+        let input = "\
+            let two = \"two\";
+            {
+                \"one\": 10 - 9,
+                two: 1 + 1,
+                \"thr\" + \"ee\": 6 / 2,
+                4: 4,
+                true: 5,
+                false: 6,
+            }"
+        .to_string();
+
+        let evaluated = evaluate_input(&input);
+        let expected = {
+            let mut map = HashMap::new();
+            map.insert(
+                Object::String(String {
+                    value: "one".to_string(),
+                })
+                .hash_key(),
+                1,
+            );
+            map.insert(
+                Object::String(String {
+                    value: "two".to_string(),
+                })
+                .hash_key(),
+                2,
+            );
+            map.insert(
+                Object::String(String {
+                    value: "three".to_string(),
+                })
+                .hash_key(),
+                3,
+            );
+            map.insert(Object::Integer(Integer { value: 4 }).hash_key(), 4);
+            map.insert(TRUE.hash_key(), 5);
+            map.insert(FALSE.hash_key(), 6);
+            map
+        };
+
+        if let Object::MonkeyHashMap(evaluated_map) = evaluated {
+            assert!(evaluated_map.pairs.len() == expected.len());
+            for (expected_key, expected_value) in expected.iter() {
+                assert!(evaluated_map.pairs.contains_key(expected_key));
+                let pair = evaluated_map.pairs.get(expected_key);
+                if let Some(pair) = pair {
+                    if let Object::Integer(val) = &pair.value {
+                        assert_eq!(val.value, *expected_value);
+                    } else {
+                        panic!("Value is not an integer like expected: {}", pair.value);
+                    }
+                }
+            }
         }
     }
 
