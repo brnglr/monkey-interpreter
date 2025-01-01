@@ -1,11 +1,12 @@
 use crate::object::{Array, BuiltIn, Error, Integer, Object, NULL};
 
-static BUILTIN_FUNCTIONS: [(&str, fn(Vec<Object>) -> Object); 5] = [
+static BUILTIN_FUNCTIONS: [(&str, fn(Vec<Object>) -> Object); 6] = [
     ("len", len),
     ("first", first),
     ("last", last),
     ("rest", rest),
     ("push", push),
+    ("puts", puts),
 ];
 
 fn len(args: Vec<Object>) -> Object {
@@ -109,6 +110,13 @@ fn push(args: Vec<Object>) -> Object {
     return Object::Error(Error {
         message: format!("argument to push must be ARRAY, got {}", args[0].get_type()),
     });
+}
+
+fn puts(args: Vec<Object>) -> Object {
+    for arg in args.iter() {
+        println!("{}", arg);
+    }
+    return NULL;
 }
 
 pub fn get_builtin(name: &str) -> Option<Object> {
