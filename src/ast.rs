@@ -282,19 +282,27 @@ impl ASTNode for HashLiteral {
             }
 
             let hash_key = evaluated_key.hash_key();
+            match hash_key {
+                None => {
+                    return Object::Error(Error {
+                        message: format!("unusable for hash key: {}", evaluated_key.get_type()),
+                    });
+                }
+                Some(hash_key) => {
+                    let evaluated_value = value.evaluate(environment);
+                    if let Object::Error(_) = evaluated_value {
+                        return evaluated_value;
+                    }
 
-            let evaluated_value = value.evaluate(environment);
-            if let Object::Error(_) = evaluated_value {
-                return evaluated_value;
+                    evaluated_pairs.insert(
+                        hash_key,
+                        HashPair {
+                            key: evaluated_key,
+                            value: evaluated_value,
+                        },
+                    );
+                }
             }
-
-            evaluated_pairs.insert(
-                hash_key,
-                HashPair {
-                    key: evaluated_key,
-                    value: evaluated_value,
-                },
-            );
         }
 
         return Object::MonkeyHashMap(MonkeyHashMap {
@@ -504,6 +512,27 @@ impl ASTNode for IndexExpression {
                     ),
                 }),
             },
+            Object::MonkeyHashMap(hash_map) => {
+                let key = evaluated_index.hash_key();
+                match key {
+                    None => {
+                        return Object::Error(Error {
+                            message: format!(
+                                "unusable as hash key: {}",
+                                evaluated_index.get_type()
+                            ),
+                        });
+                    }
+                    Some(hash_key) => {
+                        let pair = hash_map.pairs.get(&hash_key);
+                        if let Some(pair) = pair {
+                            return pair.value.clone();
+                        } else {
+                            return NULL;
+                        }
+                    }
+                }
+            }
             _ => Object::Error(Error {
                 message: format!(
                     "index operator not supported on operand: {}",

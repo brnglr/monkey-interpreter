@@ -24,7 +24,9 @@ pub struct MonkeyHashKey {
     value: u64,
 }
 pub trait Hashable {
-    fn hash_key(&self) -> MonkeyHashKey;
+    fn hash_key(&self) -> Option<MonkeyHashKey> {
+        None
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -37,10 +39,10 @@ impl Integer {
     }
 }
 impl Hashable for Integer {
-    fn hash_key(&self) -> MonkeyHashKey {
-        return MonkeyHashKey {
+    fn hash_key(&self) -> Option<MonkeyHashKey> {
+        return Some(MonkeyHashKey {
             value: self.value as u64,
-        };
+        });
     }
 }
 impl fmt::Display for Integer {
@@ -59,12 +61,12 @@ impl String {
     }
 }
 impl Hashable for String {
-    fn hash_key(&self) -> MonkeyHashKey {
+    fn hash_key(&self) -> Option<MonkeyHashKey> {
         let mut hasher = DefaultHasher::new();
         self.value.hash(&mut hasher);
-        return MonkeyHashKey {
+        return Some(MonkeyHashKey {
             value: hasher.finish(),
-        };
+        });
     }
 }
 impl fmt::Display for String {
@@ -83,10 +85,10 @@ impl Boolean {
     }
 }
 impl Hashable for Boolean {
-    fn hash_key(&self) -> MonkeyHashKey {
-        return MonkeyHashKey {
+    fn hash_key(&self) -> Option<MonkeyHashKey> {
+        return Some(MonkeyHashKey {
             value: self.value as u64,
-        };
+        });
     }
 }
 impl fmt::Display for Boolean {
@@ -109,6 +111,7 @@ impl fmt::Display for Array {
         write!(f, "{:?}", self.elements)
     }
 }
+impl Hashable for Array {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct HashPair {
@@ -133,6 +136,7 @@ impl fmt::Display for MonkeyHashMap {
         write!(f, "{{{}}}", pair_strs.join(", "))
     }
 }
+impl Hashable for MonkeyHashMap {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ReturnValue {
@@ -148,6 +152,7 @@ impl fmt::Display for ReturnValue {
         write!(f, "{}", self.value)
     }
 }
+impl Hashable for ReturnValue {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function {
@@ -167,6 +172,7 @@ impl fmt::Display for Function {
         write!(f, "fn({}) {{{}}}", params.join(","), self.body)
     }
 }
+impl Hashable for Function {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct BuiltIn {
@@ -182,6 +188,7 @@ impl fmt::Display for BuiltIn {
         write!(f, "builtin function")
     }
 }
+impl Hashable for BuiltIn {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Error {
@@ -197,6 +204,7 @@ impl fmt::Display for Error {
         write!(f, "ERROR: {}", self.message)
     }
 }
+impl Hashable for Error {}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Null {}
@@ -210,6 +218,7 @@ impl fmt::Display for Null {
         write!(f, "null")
     }
 }
+impl Hashable for Null {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Object {
@@ -241,12 +250,18 @@ impl Object {
     }
 }
 impl Hashable for Object {
-    fn hash_key(&self) -> MonkeyHashKey {
+    fn hash_key(&self) -> Option<MonkeyHashKey> {
         match self {
             Object::Integer(integer) => integer.hash_key(),
             Object::String(string) => string.hash_key(),
             Object::Boolean(boolean) => boolean.hash_key(),
-            _ => panic!("Object type not supported as hash key: {}", self.get_type()),
+            Object::Array(array) => array.hash_key(),
+            Object::MonkeyHashMap(hash_map) => hash_map.hash_key(),
+            Object::ReturnValue(return_value) => return_value.hash_key(),
+            Object::Function(function) => function.hash_key(),
+            Object::BuiltIn(built_in) => built_in.hash_key(),
+            Object::Error(error) => error.hash_key(),
+            Object::Null(null) => null.hash_key(),
         }
     }
 }

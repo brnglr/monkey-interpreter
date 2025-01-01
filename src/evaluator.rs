@@ -12,7 +12,8 @@ mod tests {
     use crate::evaluator::eval;
     use crate::lexer::Lexer;
     use crate::object::{
-        Array, Environment, Error, Hashable, Integer, Object, String, FALSE, NULL, TRUE,
+        Array, Environment, Error, Hashable, Integer, MonkeyHashKey, Object, String, FALSE, NULL,
+        TRUE,
     };
     use crate::parser::Parser;
     use std::collections::HashMap;
@@ -692,31 +693,48 @@ mod tests {
 
         let evaluated = evaluate_input(&input);
         let expected = {
-            let mut map = HashMap::new();
+            let mut map: HashMap<MonkeyHashKey, i64> = HashMap::new();
             map.insert(
                 Object::String(String {
                     value: "one".to_string(),
                 })
-                .hash_key(),
+                .hash_key()
+                .expect("String should implement hash_key()"),
                 1,
             );
             map.insert(
                 Object::String(String {
                     value: "two".to_string(),
                 })
-                .hash_key(),
+                .hash_key()
+                .expect("String should implement hash_key()"),
                 2,
             );
             map.insert(
                 Object::String(String {
                     value: "three".to_string(),
                 })
-                .hash_key(),
+                .hash_key()
+                .expect("String should implement hash_key()"),
                 3,
             );
-            map.insert(Object::Integer(Integer { value: 4 }).hash_key(), 4);
-            map.insert(TRUE.hash_key(), 5);
-            map.insert(FALSE.hash_key(), 6);
+            map.insert(
+                Object::Integer(Integer { value: 4 })
+                    .hash_key()
+                    .expect("Integer should implement hash_key()"),
+                4,
+            );
+            map.insert(
+                TRUE.hash_key()
+                    .expect("Boolean should implement hash_key()"),
+                5,
+            );
+            map.insert(
+                FALSE
+                    .hash_key()
+                    .expect("Boolean should implement hash_key()"),
+                6,
+            );
             map
         };
 
@@ -733,6 +751,50 @@ mod tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn test_hash_index_expressions() {
+        struct TestData {
+            input: std::string::String,
+            expected: Object,
+        }
+        let tests = vec![
+            TestData {
+                input: "{\"foo\": 5}[\"foo\"]".to_string(),
+                expected: build_integer_object(5),
+            },
+            TestData {
+                input: "{\"foo\": 5}[\"bar\"]".to_string(),
+                expected: NULL,
+            },
+            TestData {
+                input: "let key = \"foo\"; {\"foo\": 5}[key];".to_string(),
+                expected: build_integer_object(5),
+            },
+            TestData {
+                input: "{}[\"foo\"]".to_string(),
+                expected: NULL,
+            },
+            TestData {
+                input: "{5: 5}[5]".to_string(),
+                expected: build_integer_object(5),
+            },
+            TestData {
+                input: "{true: 5}[true]".to_string(),
+                expected: build_integer_object(5),
+            },
+            TestData {
+                input: "{false: 5}[false]".to_string(),
+                expected: build_integer_object(5),
+            },
+        ];
+
+        for test in tests.iter() {
+            println!("{}", test.input);
+            let evaluated = evaluate_input(&test.input);
+            assert_eq!(evaluated, test.expected);
         }
     }
 
@@ -824,6 +886,12 @@ mod tests {
                 input: "\"Hello\" - \"World\"".to_string(),
                 expected_error: Object::Error(Error {
                     message: "unknown operator: STRING - STRING".to_string(),
+                }),
+            },
+            TestData {
+                input: "{\"name\": \"Monkey\"}[fn(x) { x }];".to_string(),
+                expected_error: Object::Error(Error {
+                    message: "unusable as hash key: FUNCTION".to_string(),
                 }),
             },
         ];
