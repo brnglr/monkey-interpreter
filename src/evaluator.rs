@@ -688,6 +688,9 @@ mod tests {
                 4: 4,
                 true: 5,
                 false: 6,
+                1: 7,
+                \"1\": 8,
+                \"true\": 9,
             }"
         .to_string();
 
@@ -734,6 +737,28 @@ mod tests {
                     .hash_key()
                     .expect("Boolean should implement hash_key()"),
                 6,
+            );
+            map.insert(
+                Object::Integer(Integer { value: 1 })
+                    .hash_key()
+                    .expect("Integer should implement hash_key()"),
+                7,
+            );
+            map.insert(
+                Object::String(String {
+                    value: "1".to_string(),
+                })
+                .hash_key()
+                .expect("String should implement hash_key()"),
+                8,
+            );
+            map.insert(
+                Object::String(String {
+                    value: "true".to_string(),
+                })
+                .hash_key()
+                .expect("String should implement hash_key()"),
+                9,
             );
             map
         };
@@ -792,7 +817,6 @@ mod tests {
         ];
 
         for test in tests.iter() {
-            println!("{}", test.input);
             let evaluated = evaluate_input(&test.input);
             assert_eq!(evaluated, test.expected);
         }

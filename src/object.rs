@@ -21,7 +21,7 @@ pub fn get_boolean_object(value: bool) -> Object {
 // built-in hash map type.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct MonkeyHashKey {
-    value: u64,
+    value: std::string::String,
 }
 pub trait Hashable {
     fn hash_key(&self) -> Option<MonkeyHashKey> {
@@ -41,7 +41,7 @@ impl Integer {
 impl Hashable for Integer {
     fn hash_key(&self) -> Option<MonkeyHashKey> {
         return Some(MonkeyHashKey {
-            value: self.value as u64,
+            value: format!("{}:{}", self.get_type(), self.value),
         });
     }
 }
@@ -65,7 +65,7 @@ impl Hashable for String {
         let mut hasher = DefaultHasher::new();
         self.value.hash(&mut hasher);
         return Some(MonkeyHashKey {
-            value: hasher.finish(),
+            value: format!("{}:{}", self.get_type(), hasher.finish()),
         });
     }
 }
@@ -87,7 +87,7 @@ impl Boolean {
 impl Hashable for Boolean {
     fn hash_key(&self) -> Option<MonkeyHashKey> {
         return Some(MonkeyHashKey {
-            value: self.value as u64,
+            value: format!("{}:{}", self.get_type(), self.value),
         });
     }
 }
